@@ -1,0 +1,40 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/hannes/uni/video_enc/ivc-ss21/tools/psnr-images/src/image.cpp
+cmath
+-
+fstream
+-
+image.h
+/home/hannes/uni/video_enc/ivc-ss21/tools/psnr-images/src/image.h
+
+/home/hannes/uni/video_enc/ivc-ss21/tools/psnr-images/src/image.h
+cassert
+-
+iostream
+-
+string
+-
+vector
+-
+
+/home/hannes/uni/video_enc/ivc-ss21/tools/psnr-images/src/main.cpp
+fstream
+-
+iostream
+-
+iomanip
+-
+string
+-
+cmath
+-
+image.h
+/home/hannes/uni/video_enc/ivc-ss21/tools/psnr-images/src/image.h
+

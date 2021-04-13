@@ -1,0 +1,1 @@
+/usr/bin/c++  -O3 -DNDEBUG   CMakeFiles/psnrImg.dir/src/image.cpp.o CMakeFiles/psnrImg.dir/src/main.cpp.o  -o ../../../bin/GNU-9.3.0/psnrImg 
