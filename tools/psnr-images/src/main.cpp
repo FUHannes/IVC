@@ -103,7 +103,7 @@ int main( int argc, const char** argv )
   double              avgMSE  = 0.0;
   double              rateBpp = 0.0;
   for( double PSNR : PSNRs )
-    avgMSE += ::exp10( -0.1*PSNR );
+    avgMSE += ::pow( 10.0, -0.1*PSNR );
   avgMSE   /= double( PSNRs.size() );
   double avgPSNR = -10.0*::log10( avgMSE );
   if( !pars.stream().empty() )
