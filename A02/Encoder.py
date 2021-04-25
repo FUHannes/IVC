@@ -85,13 +85,28 @@ class Encoder:
             for yi in range(blocks_y):
                 data_blocks[xi,yi] = data_scanlines[xi:xi+self.block_size, yi:yi+self.block_size]
 
-        magic_header="IVC_SS21".encode("ascii")
 
-        encoded_np_stream = io.BytesIO()
-        np.save(encoded_np_stream, data_blocks)
-        encoded_np_stream.seek(0)
+        magic_header = b'IVC_SS21'
 
-        #print(len(encoded_np_stream.read()))
+        metadata = b'v0001' + self.block_size.to_bytes(2,"big") + blocks_x.to_bytes(2,"big") + blocks_y.to_bytes(2,"big")
 
-        self.encoded_stream = bytearray(magic_header) + encoded_np_stream.read()
+        # this could be multithreaded
+        encoded_block_stream = b''
+        for xi in range(blocks_x):
+            for yi in range(blocks_y):
+                encoded_block_stream += self._encode_block_(data_blocks[xi,yi])
+
+        self.encoded_stream = magic_header + metadata + encoded_block_stream
         return self.encoded_stream
+
+    def _encode_block_(self,block):
+
+        #this is what changes in future versions
+
+        block = block.ravel()
+
+        block_as_bytes = b''
+        for x in block:
+            block_as_bytes += int(x).to_bytes(1,"big")
+
+        return block_as_bytes
