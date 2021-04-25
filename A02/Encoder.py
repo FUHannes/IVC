@@ -89,6 +89,9 @@ class Encoder:
 
         encoded_np_stream = io.BytesIO()
         np.save(encoded_np_stream, data_blocks)
+        encoded_np_stream.seek(0)
 
-        self.encoded_stream = bytearray(magic_header) + bytearray(encoded_np_stream) 
+        #print(len(encoded_np_stream.read()))
+
+        self.encoded_stream = bytearray(magic_header) + encoded_np_stream.read()
         return self.encoded_stream
