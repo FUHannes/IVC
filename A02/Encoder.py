@@ -1,4 +1,5 @@
 import numpy as np
+import io
 
 class Encoder:
 
@@ -86,5 +87,8 @@ class Encoder:
 
         magic_header="IVC_SS21".encode("ascii")
 
-        self.encoded_stream=magic_header
+        encoded_np_stream = io.BytesIO()
+        np.save(encoded_np_stream, data_blocks)
+
+        self.encoded_stream = bytearray(magic_header) + bytearray(encoded_np_stream) 
         return self.encoded_stream
