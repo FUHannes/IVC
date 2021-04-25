@@ -13,6 +13,7 @@ class Encoder:
             self.data_start = 0
 
             width_done = False
+            line = 0
             for byte in self.raw_bytes:
 
                 self.data_start += 1
@@ -56,7 +57,7 @@ class Encoder:
         return self.raw_bytes
 
     def _get_img_data_(self):
-        self.pgm=PGM(self.raw_bytes)
+        self.pgm=self.PGM(self.raw_bytes)
 
     def encode(self,raw_bytes=None):
 
@@ -65,6 +66,7 @@ class Encoder:
 
         self._get_img_data_()
 
-        print(raw_img_data[:25])
+        magic_header="IVC_SS21".encode("ascii")
 
+        self.encoded_stream=magic_header
         return self.encoded_stream
