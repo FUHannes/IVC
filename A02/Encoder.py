@@ -77,8 +77,8 @@ class Encoder:
         # currently no img padding so the img size must be an exact multiple of the block size in both directions
         assert self.pgm.width % self.block_size == 0 and self.pgm.height % self.block_size == 0
         
-        blocks_x = int(self.pgm.height/self.block_size)
-        blocks_y = int(self.pgm.width/self.block_size)
+        blocks_x = int(self.pgm.width/self.block_size)
+        blocks_y = int(self.pgm.height/self.block_size)
 
         data_blocks = np.zeros([blocks_x,blocks_y,self.block_size,self.block_size])
         for xi in range(blocks_x):
@@ -96,7 +96,7 @@ class Encoder:
             for yi in range(blocks_y):
                 encoded_block_stream += self._encode_block_(data_blocks[xi,yi])
 
-        self.encoded_stream = magic_header + metadata + encoded_block_stream
+        self.encoded_stream = magic_header + metadata + data.tobytes()#encoded_block_stream
         return self.encoded_stream
 
     def _encode_block_(self,block):

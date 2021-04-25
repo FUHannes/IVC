@@ -40,8 +40,10 @@ class Decoder:
 
             # retreiving blocks from binary
 
-            blocks = np.frombuffer(encoded_stream[19:],dtype=np.uint8)
-            print(blocks.shape)
+            data = np.frombuffer(encoded_stream[19:],dtype=np.uint8)
+            #blocks.reshape(blocks_x*block_size,blocks_y,block_size) #idee zum schnelleren encoden und dann np axis swap oder so
+
+            #print(blocks.shape)
 
             # actual decoding
             pgm_image_data = encoded_stream[19:]
