@@ -1,3 +1,5 @@
+import numpy as np
+
 class Encoder:
 
     class PGM:
@@ -10,7 +12,7 @@ class Encoder:
             self.width = 0
             self.height = 0
             self.max_pixel_val = 0
-            self.data_start = 0
+            self.data_start = -1
 
             width_done = False
             line = 0
@@ -65,6 +67,22 @@ class Encoder:
             self.raw_bytes = raw_bytes
 
         self._get_img_data_()
+
+        #cut away additional data and convert to ndarray for performance improvements
+        data = np.array(bytearray(self.pgm.data)[:self.pgm.height*self.pgm.width])
+
+        data_scanlines = data.reshape(self.pgm.height,self.pgm.width)
+
+        # currently no img padding so the img size must be an exact multiple of the block size in both directions
+        assert self.pgm.width % self.block_size == 0 and self.pgm.height % self.block_size == 0
+        
+        blocks_x = int(self.pgm.height/self.block_size)
+        blocks_y = int(self.pgm.width/self.block_size)
+
+        data_blocks = np.zeros([blocks_x,blocks_y,self.block_size,self.block_size])
+        for xi in range(blocks_x):
+            for yi in range(blocks_y):
+                data_blocks[xi,yi] = data_scanlines[xi:xi+self.block_size, yi:yi+self.block_size]
 
         magic_header="IVC_SS21".encode("ascii")
 
