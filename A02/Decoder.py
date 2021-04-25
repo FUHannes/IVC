@@ -39,22 +39,14 @@ class Decoder:
             blocks_y = int.from_bytes(encoded_stream[17:19],"big")
 
             # retreiving blocks from binary
-            
-            blocks = np.zeros([blocks_x,blocks_y,block_size,block_size])
-            counter = 0
-            current_block = np.zeros([block_size^2])
-            for byte in encoded_stream[19:]:
-                if counter%(block_size^2) == 0:
-                    blocks[counter/block_size,(counter/block_size)%blocks_x]
-                    counter = 0
-                    continue
-                current_block[counter]=byte
-                counter += 1
+
+            blocks = np.frombuffer(encoded_stream[19:],dtype=np.uint8)
+            print(blocks.shape)
 
             # actual decoding
-            pgm_image_data=b''
+            pgm_image_data = encoded_stream[19:]
 
-            pgm_metadata = f'P5\n{blocks_x_count*block_size} {blocks_y_count*block_size}\n255\n'.encode()
+            pgm_metadata = f'P5\n{blocks_x*block_size} {blocks_y*block_size}\n255\n'.encode()
 
             self.decoded_data = pgm_metadata + pgm_image_data
             return self.decoded_data
