@@ -2,6 +2,7 @@ import numpy as np
 # !pip install joblib
 from joblib import Parallel, delayed
 from functools import reduce
+#import numba #use if further speedups required
 
 class Encoder:
 
@@ -36,7 +37,7 @@ class Encoder:
         data = np.array(bytearray(self.pgm.data)[:self.pgm.height*self.pgm.width]) # data = np.frombuffer(self.raw_bytes,offset=self.pgm.data_start-1,count=self.pgm.height*self.pgm.width)
 
         if False:    
-            #TODO: make padding work 
+            # TODO : make padding work 
             #padding img so weird block_size s work
             width_diskrepanz = self.block_size-(self.pgm.width%self.block_size)
             height_diskrepanz = self.block_size-(self.pgm.height%self.block_size)
