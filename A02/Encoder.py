@@ -1,9 +1,13 @@
 import numpy as np
+# !pip install joblib
+from joblib import Parallel, delayed
+from functools import reduce
 
 class Encoder:
 
-    def __init__(self,block_size=100):
+    def __init__(self,block_size=8,multithreaded=False):
         self.block_size=block_size
+        self.multithreaded=multithreaded
 
     def __call__(self,path):
 
@@ -44,12 +48,23 @@ class Encoder:
 
         metadata = b'v0001' + self.block_size.to_bytes(2,"big") + blocks_x.to_bytes(2,"big") + blocks_y.to_bytes(2,"big")
 
-        # this could be multithreaded
-        encoded_block_stream = b''
-        for xi in range(blocks_x):
-            for yi in range(blocks_y):
-                encoded_block_stream += self._encode_block_(data_blocks[xi,yi])
+        if self.multithreaded:
+            #multithreaded block encoding
+            def thread_task(arr):
+                encoded_block_stream = b''
+                for yi in range(blocks_y):
+                    encoded_block_stream += self._encode_block_(arr[yi])
+                return encoded_block_stream
 
+            encoded_block_streams = Parallel(n_jobs=blocks_x, backend="threading")(map(delayed(thread_task), data_blocks))
+            encoded_block_stream = reduce(lambda a,b: a+b , encoded_block_streams, b'')
+
+        else:
+            encoded_block_stream = b''
+            for xi in range(blocks_x):
+                for yi in range(blocks_y):
+                    encoded_block_stream += self._encode_block_(data_blocks[xi,yi])
+            
         self.encoded_stream = magic_header + metadata + encoded_block_stream
         return self.encoded_stream
 
