@@ -43,7 +43,7 @@ class Encoder:
             self.data = self.raw_bytes[self.data_start:]
             
 
-    def __init__(self,block_size=8):
+    def __init__(self,block_size=100):
         self.block_size=block_size
 
     def __call__(self,path):
@@ -70,9 +70,7 @@ class Encoder:
         self._get_img_data_()
 
         #cut away additional data and convert to ndarray for performance improvements
-        data = np.array(bytearray(self.pgm.data)[:self.pgm.height*self.pgm.width])
-
-        data_scanlines = data.reshape(self.pgm.height,self.pgm.width)
+        data = np.array(bytearray(self.pgm.data)[:self.pgm.height*self.pgm.width]) # data = np.frombuffer(self.raw_bytes,offset=self.pgm.data_start-1,count=self.pgm.height*self.pgm.width)
 
         # currently no img padding so the img size must be an exact multiple of the block size in both directions
         assert self.pgm.width % self.block_size == 0 and self.pgm.height % self.block_size == 0
@@ -80,11 +78,8 @@ class Encoder:
         blocks_x = int(self.pgm.width/self.block_size)
         blocks_y = int(self.pgm.height/self.block_size)
 
-        data_blocks = np.zeros([blocks_x,blocks_y,self.block_size,self.block_size])
-        for xi in range(blocks_x):
-            for yi in range(blocks_y):
-                data_blocks[xi,yi] = data_scanlines[xi:xi+self.block_size, yi:yi+self.block_size]
-
+        # this is where the magic happens
+        data_blocks = np.swapaxes(data.reshape([blocks_x,self.block_size,blocks_y,self.block_size]),1,2)
 
         magic_header = b'IVC_SS21'
 
@@ -96,7 +91,7 @@ class Encoder:
             for yi in range(blocks_y):
                 encoded_block_stream += self._encode_block_(data_blocks[xi,yi])
 
-        self.encoded_stream = magic_header + metadata + data.tobytes()#encoded_block_stream
+        self.encoded_stream = magic_header + metadata + encoded_block_stream
         return self.encoded_stream
 
     def _encode_block_(self,block):

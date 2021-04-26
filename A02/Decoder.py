@@ -39,14 +39,14 @@ class Decoder:
             blocks_y = int.from_bytes(encoded_stream[17:19],"big")
 
             # retreiving blocks from binary
+            data = np.frombuffer(encoded_stream[19:],dtype=np.uint8).reshape([blocks_x,blocks_y,block_size,block_size])
 
-            data = np.frombuffer(encoded_stream[19:],dtype=np.uint8)
-            #blocks.reshape(blocks_x*block_size,blocks_y,block_size) #idee zum schnelleren encoden und dann np axis swap oder so
+            #deblocking
+            data = np.swapaxes(data,1,2)
 
-            #print(blocks.shape)
-
-            # actual decoding
-            pgm_image_data = encoded_stream[19:]
+            # actual decoding (not much happening yet)
+            data.ravel()#no-copy flattening
+            pgm_image_data = data.tobytes()
 
             pgm_metadata = f'P5\n{blocks_x*block_size} {blocks_y*block_size}\n255\n'.encode()
 
