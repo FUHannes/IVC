@@ -5,7 +5,7 @@ from functools import reduce
 
 class Encoder:
 
-    def __init__(self,block_size=8,multithreaded=False):
+    def __init__(self,block_size=100,multithreaded=True):
         self.block_size=block_size
         self.multithreaded=multithreaded
 
@@ -37,6 +37,7 @@ class Encoder:
 
         # currently no img padding so the img size must be an exact multiple of the block size in both directions
         assert self.pgm.width % self.block_size == 0 and self.pgm.height % self.block_size == 0
+        #TODO: have a look at np.pad() to resolve this
         
         blocks_x = int(self.pgm.width/self.block_size)
         blocks_y = int(self.pgm.height/self.block_size)
