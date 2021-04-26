@@ -5,7 +5,7 @@ from functools import reduce
 
 class Decoder:
 
-    def __init__(self,multithreaded=False):
+    def __init__(self,multithreaded=True):
         self.multithreaded=multithreaded
 
     def __call__(self,encoded_stream,path = None):
@@ -45,29 +45,26 @@ class Decoder:
             encoded_blocks = np.frombuffer(encoded_stream[19:],dtype=np.uint8).reshape([blocks_x,blocks_y,-1])
 
             #setup empty blocks
-            decoded_blocks = np.full([blocks_x,blocks_y,self.block_size,self.block_size],255)
+            decoded_blocks = np.zeros([blocks_x,blocks_y,self.block_size,self.block_size],dtype=np.uint8)
 
             if self.multithreaded:
-                #multithreaded block encoding
-                def thread_task(arr):
-                    decoded_block_stream = b''
+                #multithreaded block decoding
+                def thread_task(encoded_block_stream):
+                    decoded_block_stream=np.zeros([blocks_y,self.block_size,self.block_size],dtype=np.uint8)
                     for yi in range(blocks_y):
-                        decoded_block_stream += self._decode_block_(arr[yi])
+                        decoded_block_stream[yi] = self._decode_block_(encoded_block_stream[yi])
                     return decoded_block_stream
 
-                decoded_block_streams = Parallel(n_jobs=blocks_x, backend="threading")(map(delayed(thread_task), data_blocks))
-                decoded_block_stream = reduce(lambda a,b: a+b , decoded_block_streams, b'')
+                decoded_blocks = Parallel(n_jobs=blocks_x, backend="threading")(map(delayed(thread_task), encoded_blocks))
 
             else:
                 for xi in range(blocks_x):
                     for yi in range(blocks_y):
-                        #x = encoded_blocks[xi,yi,:].reshape([self.block_size,self.block_size])
-                        #decoded_blocks[xi,yi] = x #self._decode_block_(encoded_blocks[xi,yi,:])
-                        pass
+                        decoded_blocks[xi,yi] = self._decode_block_(encoded_blocks[xi,yi,:])
 
 
         pgm_metadata = f'P5\n{blocks_x*self.block_size} {blocks_y*self.block_size}\n255\n'.encode()
-        #decoded_blocks = encoded_blocks.reshape([blocks_x,blocks_y,self.block_size,self.block_size])
+        
         #deblock and convert to bytestream
         pgm_image_data = np.swapaxes(decoded_blocks,1,2).ravel().tobytes()
 
@@ -80,7 +77,7 @@ class Decoder:
 
         #version check for backwards compatibility
         if self.version == 1:
-            block = block.reshape([self.block_size,self.block_size]) #not much to decode in version 1
+            block = block.reshape([self.block_size,self.block_size])#not much to decode in version 1
             return block
 
         raise Exception("incompatible version")
