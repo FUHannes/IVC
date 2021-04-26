@@ -35,12 +35,25 @@ class Encoder:
         #cut away additional data and convert to ndarray for performance improvements
         data = np.array(bytearray(self.pgm.data)[:self.pgm.height*self.pgm.width]) # data = np.frombuffer(self.raw_bytes,offset=self.pgm.data_start-1,count=self.pgm.height*self.pgm.width)
 
-        # currently no img padding so the img size must be an exact multiple of the block size in both directions
-        assert self.pgm.width % self.block_size == 0 and self.pgm.height % self.block_size == 0
-        #TODO: have a look at np.pad() to resolve this
+        if False:    
+            #TODO: make padding work 
+            #padding img so weird block_size s work
+            width_diskrepanz = self.block_size-(self.pgm.width%self.block_size)
+            height_diskrepanz = self.block_size-(self.pgm.height%self.block_size)
+            self.width = self.pgm.width+width_diskrepanz
+            self.height = self.pgm.height+height_diskrepanz
+            unpadded_img = data.reshape([self.pgm.width,self.pgm.height])
+            data = np.pad(unpadded_img, ((0,width_diskrepanz),(0,height_diskrepanz)),'constant').ravel()
+
+            blocks_x = int(self.width/self.block_size)
+            blocks_y = int(self.height/self.block_size)
+
+        else:
+            blocks_x = int(self.pgm.width/self.block_size)
+            blocks_y = int(self.pgm.height/self.block_size)
+            # currently no img padding so the img size must be an exact multiple of the block size in both directions
+            assert self.pgm.width % self.block_size == 0 and self.pgm.height % self.block_size == 0
         
-        blocks_x = int(self.pgm.width/self.block_size)
-        blocks_y = int(self.pgm.height/self.block_size)
 
         # this is where the magic happens
         data_blocks = np.swapaxes(data.reshape([blocks_x,self.block_size,blocks_y,self.block_size]),1,2)
