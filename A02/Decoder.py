@@ -45,8 +45,7 @@ class Decoder:
             data = np.swapaxes(data,1,2)
 
             # actual decoding (not much happening yet)
-            data.ravel()#no-copy flattening
-            pgm_image_data = data.tobytes()
+            pgm_image_data = data.ravel().tobytes()
 
             pgm_metadata = f'P5\n{blocks_x*block_size} {blocks_y*block_size}\n255\n'.encode()
 
