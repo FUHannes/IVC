@@ -6,23 +6,34 @@ from functools import reduce
 
 class Encoder:
 
-    def __init__(self,block_size=100,multithreaded=True):
+    def __init__(self,block_size=100,multithreaded=True,use_version=1):
+        self.use_version=use_version
         self.block_size=block_size
         self.multithreaded=multithreaded
 
-    def __call__(self,path):
-
-        #automatic pipeline
-        self.read_raw_bytes(path)
+    #automatic pipeline
+    def __call__(self,input_path,output_path=None):
+        self.read_in(input_path)
         self.encode()
+        if output_path is not None:
+            self.write_out(output_path)
         return self.encoded_stream
 
-    def read_raw_bytes(self,path):
-
-        #opening and reading a binary file
-        self.raw_bytes = open(path, "rb").read()
+    #opening and reading a binary file
+    def read_in(self,input_path):
+        in_file = open(input_path, "rb")
+        self.raw_bytes = in_file.read()
+        in_file.close()
         return self.raw_bytes
 
+    #opening and writing a binary file
+    def write_out(self,output_path):
+        out_file = open(output_path, "wb")
+        out_file.write(self.encoded_stream)
+        out_file.close()
+        return True
+
+    #parsing all the pgm (meta-)data into a pgm object
     def _get_img_data_(self):
         self.pgm=self.PGM(self.raw_bytes)
 
@@ -61,7 +72,7 @@ class Encoder:
 
         magic_header = b'IVC_SS21'
 
-        metadata = b'v0001' + self.block_size.to_bytes(2,"big") + blocks_x.to_bytes(2,"big") + blocks_y.to_bytes(2,"big")
+        metadata = b'v'+str(self.use_version).zfill(4).encode() + self.block_size.to_bytes(2,"big") + blocks_x.to_bytes(2,"big") + blocks_y.to_bytes(2,"big")
 
         if self.multithreaded:
             #multithreaded block encoding
@@ -83,12 +94,13 @@ class Encoder:
         self.encoded_stream = magic_header + metadata + encoded_block_stream
         return self.encoded_stream
 
+
     def _encode_block_(self,block):
+        #switch versions so in the end we can do this automatically and plot our psnr progress
+        if self.use_version == 1:
+            return block.ravel().tobytes()
 
-        #this is what changes in future versions
-
-        return block.ravel().tobytes()
-
+        raise Exception("incompatible version")
 
 
 
