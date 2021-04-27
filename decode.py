@@ -8,7 +8,7 @@ from Decoder import Decoder as Dec
 def main():
     parser = argparse.ArgumentParser(description='PGM decoder')
     requiredNamed = parser.add_argument_group('required arguments')
-    requiredNamed.add_argument('-o', '--output', help='ireconstructed image in pgm format', required=True,dest="input")
+    requiredNamed.add_argument('-o', '--output', help='reconstructed image in pgm format', required=True,dest="input")
     requiredNamed.add_argument('-b', '--bitstream', help='bitstream file to be read by decoder', required=True, dest="bitstream")
     args = parser.parse_args()
 
