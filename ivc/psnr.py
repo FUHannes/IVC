@@ -61,3 +61,6 @@ def plot_data(filename, versions):
         df.loc[version] = pd.read_pickle(os.path.join(DATA_ROOT_PATH, version, filename))
 
     # todo: generate multiline plot and save
+    fig = pd.DataFrame.plot(df, x='bpp', y='db', title='test').get_figure()
+    print("here")
+    fig.savefig('test.png')
