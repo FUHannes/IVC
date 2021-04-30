@@ -1,9 +1,12 @@
+import math
 import subprocess
 import pandas as pd
 import os
+import matplotlib.pyplot as plt
+
 
 from Encoder import Encoder as Encoder
-from Decoder import Decoder as Decorder
+from Decoder import Decoder as Decoder
 
 PSNR_TOOL_PATH = 'tools/psnr-images/bin/psnrImg'
 
@@ -34,7 +37,7 @@ def generate_data(filename, version):
 
     for index, quality in enumerate([8, 12, 16, 20, 24]):
         Encoder()(input_path, bitstream_path, quality)  # todo: check interface with other groups
-        Decorder()(bitstream_path, output_path)  # todo: check interface with other groups
+        Decoder()(bitstream_path, output_path)  # todo: check interface with other groups
 
         process = subprocess.run(
             [PSNR_TOOL_PATH, input_path, output_path, bitstream_path],
@@ -44,7 +47,7 @@ def generate_data(filename, version):
         stdout = process.stdout.decode("utf-8")
         bpp, db = stdout.split(' bpp ')
         bpp, db = float(bpp), float(db.replace(' dB', ''))
-
+        db = 0.0 if math.isinf(db) else db
         df.loc[index] = [bpp, db]
 
     version_path = os.path.join(DATA_ROOT_PATH, version)
@@ -53,14 +56,20 @@ def generate_data(filename, version):
     df.to_pickle(os.path.join(version_path, filename + DATA_SUFFIX))
 
 
-def plot_data(filename, versions):
-    df = pd.DataFrame(columns=['bpp', 'db'], index=['jpeg'] + versions)
-    df.loc['jpeg'] = None  # todo: implement
+def plot_data(filename, version, versions):
+    versions = versions.split(',') + [version] if versions else version
 
+    fig = plt.figure(figsize=(10, 5))
     for version in versions:
-        df.loc[version] = pd.read_pickle(os.path.join(DATA_ROOT_PATH, version, filename))
+        ver = pd.DataFrame(pd.read_pickle(os.path.join(DATA_ROOT_PATH, version, filename + DATA_SUFFIX)))
+        plt.plot(ver['bpp'], ver['db'], label=version)
+        print(ver)
+    jpeg_data = None  # todo: implement
+    # jpeg = pd.DataFrame(jpeg_data)
+    # plt.plot(jpeg['bpp'], jpeg['db'], label='jpeg', color='red')
 
-    # todo: generate multiline plot and save
-    fig = pd.DataFrame.plot(df, x='bpp', y='db', title='test').get_figure()
-    print("here")
-    fig.savefig('test.png')
+    plt.xlabel('X: Bits (bpp)')
+    plt.ylabel('L: PSNR (db)')
+    plt.legend()
+    fig.savefig("PSNR_test_curves.png")
+    plt.show()
