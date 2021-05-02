@@ -36,8 +36,8 @@ def generate_data(filename, version):
     df = pd.DataFrame(columns=['bpp', 'db'])
 
     for index, quality in enumerate([8, 12, 16, 20, 24]):
-        Encoder()(input_path, bitstream_path, quality)  # todo: check interface with other groups
-        Decoder()(bitstream_path, output_path)  # todo: check interface with other groups
+        Encoder(block_size=16, multithreaded=False)(input_path, bitstream_path)  # todo: check interface with other groups
+        Decoder(multithreaded=False)(bitstream_path, output_path)  # todo: check interface with other groups
 
         process = subprocess.run(
             [PSNR_TOOL_PATH, input_path, output_path, bitstream_path],
@@ -69,7 +69,7 @@ def plot_data(filename, version, versions):
     # plt.plot(jpeg['bpp'], jpeg['db'], label='jpeg', color='red')
 
     plt.xlabel('X: Bits (bpp)')
-    plt.ylabel('L: PSNR (db)')
+    plt.ylabel('Y: PSNR (db)')
     plt.legend()
     fig.savefig("PSNR_test_curves.png")
     plt.show()
