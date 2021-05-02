@@ -88,7 +88,7 @@ def parse_jpeg_data():
 
 
 def plot_data(filename, version, versions):
-    versions = versions.split(',') + [version] if versions else version
+    versions = versions.split(',') + [version] if versions else [version]
 
     fig = plt.figure(figsize=(10, 5))
     for version in versions:
