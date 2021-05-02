@@ -56,6 +56,37 @@ def generate_data(filename, version):
     df.to_pickle(os.path.join(version_path, filename + DATA_SUFFIX))
 
 
+def parse_jpeg_data():
+    jpeg_pgm_path = os.path.join(DATA_ROOT_PATH, 'JPEG_PGM' + DATA_SUFFIX)
+
+    version_path = os.path.join(DATA_ROOT_PATH, 'jpeg')
+    if not os.path.exists(version_path):
+        os.mkdir(version_path)
+
+    with open(jpeg_pgm_path) as jpeg_pgm_file:
+        filecontent = jpeg_pgm_file.read()
+
+    # data for different files is separated by two blank lines
+    all_data = filecontent.split('\n\n\n')
+
+    for i in range(1, len(all_data)):
+        file_data = all_data[i].split('\n')
+
+        # the first line is a comment, the second line is the filename surrounded by quotation marks
+        filename = file_data[1].strip('"')
+
+        df = pd.DataFrame(columns=['bpp', 'db'])
+
+        for j in range(0, 100):
+            line_data = file_data[j+2].split()
+
+            bpp = float(line_data[1])
+            db  = float(line_data[3])
+            df.loc[j] = [bpp, db]
+
+        df.to_pickle(os.path.join(version_path, filename + DATA_SUFFIX))
+
+
 def plot_data(filename, version, versions):
     versions = versions.split(',') + [version] if versions else version
 
@@ -64,12 +95,15 @@ def plot_data(filename, version, versions):
         ver = pd.DataFrame(pd.read_pickle(os.path.join(DATA_ROOT_PATH, version, filename + DATA_SUFFIX)))
         plt.plot(ver['bpp'], ver['db'], label=version)
         print(ver)
-    jpeg_data = None  # todo: implement
-    # jpeg = pd.DataFrame(jpeg_data)
-    # plt.plot(jpeg['bpp'], jpeg['db'], label='jpeg', color='red')
+
+    jpeg_path = os.path.join(DATA_ROOT_PATH, 'jpeg', filename + DATA_SUFFIX)
+    if not os.path.exists(jpeg_path):
+        parse_jpeg_data()
+    jpeg = pd.DataFrame(pd.read_pickle(jpeg_path))
+    plt.plot(jpeg['bpp'], jpeg['db'], label='jpeg', color='red')
 
     plt.xlabel('X: Bits (bpp)')
     plt.ylabel('Y: PSNR (db)')
     plt.legend()
-    fig.savefig("PSNR_test_curves.png")
+    plt.savefig("PSNR_test_curves.png")
     plt.show()
