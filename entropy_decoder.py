@@ -1,21 +1,3 @@
-# abstraction for an input bitstream 
-class IBitstream:
-
-    def __init__( self, byteArray):
-        pass
-    # get next bit from bitstream
-    def getBit( self ):
-        pass
-    # get next bits from bitstream (returns bit pattern, most significant bit first)
-    def getBits( self, numBits: int ):
-        pass    
-    # read bits until end of byte
-    def byteAlign( self ):
-        pass
-
-
-
-
 # class for all the entropy decoding
 class EntropyDecoder:
 
@@ -26,7 +8,7 @@ class EntropyDecoder:
         # loop over all positions inside NxN block
         #  --> call readQIndex for all quantization index
         out_integer_array = []
-        for index in range(blockSize**2):
+        for _ in range(blockSize**2):
             out_integer_array.append(self.readQIndex())
         return out_integer_array
 
