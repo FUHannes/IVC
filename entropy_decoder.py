@@ -28,12 +28,12 @@ class EntropyDecoder:
         reading_blue_part = True
         red_length = 0
         while True:
-            bit = int(self.bitstream.getBit())
+            bit = int(self.bitstream.getBit()) # not sure whether Ibitstream returns True/False or an Integer so we play it safe
             if reading_blue_part:
                 red_length+=1
-                reading_blue_part = (bit == 0)
+                reading_blue_part = not bit
             else:
-                current_red_code = current_red_code * 2 + int(bit) #ok der teil wäre wohl in c wesentlich schneller (current_red_code << 1 + bit)
+                current_red_code = current_red_code * 2 + bit 
                 red_length-=1
                 if red_length == 0:
                     return current_red_code-1
