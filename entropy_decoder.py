@@ -13,11 +13,16 @@ class EntropyDecoder:
         return out_integer_array
 
     def readQIndex( self ):
+        
         # (1) read expGolomb for absolute value
-        # (2) read sign bit for absolutes values > 0
-        # (3) return value
         value = self.expGolomb()
-        return value * (-1 if self.bitstream.getBit() else 1)
+
+        # (2) read sign bit for absolutes values > 0
+        if value:
+            value *= -1 if self.bitstream.getBit() else 1
+            
+        # (3) return value
+        return value
 
         
     def expGolomb( self ):
