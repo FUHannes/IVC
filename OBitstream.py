@@ -42,5 +42,3 @@ def test_OBitstream():
     OB.addBits(2, 2)
     l = [(166).to_bytes(1, byteorder='big'), (184).to_bytes(1, byteorder='big'), (128).to_bytes(1, byteorder='big')]
     assert OB.byteAlign() == l
-
-
