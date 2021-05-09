@@ -29,16 +29,19 @@ class EntropyDecoder:
         # (1) read class index k using unary code (read all bits until next '1'; classIdx = num zeros)
         # (2) read position inside class as fixed-length code of k bits [red bits]
         # (3) return value
-        current_red_code=1
-        reading_blue_part = True
-        red_length = 0
-        while True:
-            bit = int(self.bitstream.getBit()) # not sure whether Ibitstream returns True/False or an Integer so we play it safe
-            if reading_blue_part:
-                red_length+=1
-                reading_blue_part = not bit
-            else:
-                current_red_code = current_red_code * 2 + bit 
-                red_length-=1
-                if red_length == 0:
-                    return current_red_code-1
+        
+        if not self.bitstream.getBit():
+            return 0
+        if not self.bitstream.getBit():
+            return 1
+        
+        length=0
+        while not self.bitstream.getBit():
+            length +=1
+
+        suffix = self.bitstream.getBits(length)
+        value = 1
+        for bit in suffix:
+            value = value*2 + bit
+
+        return value + 1
