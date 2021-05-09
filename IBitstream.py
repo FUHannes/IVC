@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
     i_bit_stream._bitarray = _bit_array
 
-    print(i_bit_stream.get_bit(), i_bit_stream.bitarray.to01())  # returns 1 010011010111000
+    print(i_bit_stream.get_bit(),   i_bit_stream.bitarray.to01())  # returns 1 010011010111000
     print(i_bit_stream.get_bits(5), i_bit_stream.bitarray.to01())  # returns 9 1010111000
     print(i_bit_stream.get_bits(3), i_bit_stream.bitarray.to01())  # returns 5 0111000
     print(i_bit_stream.get_bits(6), i_bit_stream.bitarray.to01())  # returns 28 0
