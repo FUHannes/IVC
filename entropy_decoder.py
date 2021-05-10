@@ -1,4 +1,7 @@
 # class for all the entropy decoding
+
+import IBitstream
+
 class EntropyDecoder:
 
     def __init__( self, bitstream: IBitstream, weird_flags_aber_ok = True ):
