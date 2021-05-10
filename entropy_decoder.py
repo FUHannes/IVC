@@ -1,8 +1,9 @@
 # class for all the entropy decoding
 class EntropyDecoder:
 
-    def __init__( self, bitstream: IBitstream ):
+    def __init__( self, bitstream: IBitstream, weird_flags_aber_ok = True ):
         self.bitstream = bitstream
+        self.weird_flags_aber_ok = weird_flags_aber_ok
 
     def readQIndexBlock( self, blockSize: int ):
         # loop over all positions inside NxN block
@@ -30,10 +31,11 @@ class EntropyDecoder:
         # (2) read position inside class as fixed-length code of k bits [red bits]
         # (3) return value
         
-        if not self.bitstream.getBit():
-            return 0
-        if not self.bitstream.getBit():
-            return 1
+        if self.weird_flags_aber_ok:
+            if not self.bitstream.getBit():
+                return 0
+            if not self.bitstream.getBit():
+                return 1
         
         length=0
         while not self.bitstream.getBit():
@@ -44,4 +46,4 @@ class EntropyDecoder:
         for bit in suffix:
             value = value*2 + bit
 
-        return value + 1
+        return value + (1 if self.weird_flags_aber_ok else -1)
