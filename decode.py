@@ -1,8 +1,7 @@
 import argparse
 import time
 
-from Decoder import Decoder as Dec
-
+from Decoder import Decoder
 
 def main():
     parser = argparse.ArgumentParser(description='PGM decoder')
@@ -16,10 +15,11 @@ def main():
                         dest='output')
     args = parser.parse_args()
 
-    dec = Dec()
+    dec = Decoder(args.bitstream, args.output)
 
     start_time = time.process_time()  # benchmarking speed
     dec(args.bitstream, args.output)  # decoding
+    dec.decode_image()
     decoding_time = time.process_time() - start_time
     print(f'it took {decoding_time * 1000}ms to decode')
 
