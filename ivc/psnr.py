@@ -36,7 +36,7 @@ def generate_data(filename, version):
     df = pd.DataFrame(columns=['bpp', 'db'])
 
     for index, quality in enumerate([8, 12, 16, 20, 24]):
-        Encoder(block_size=16, multithreaded=False)(input_path, bitstream_path)  # todo: check interface with other groups
+        Encoder(block_size=8, multithreaded=False, qp=quality)(input_path, bitstream_path)  # todo: check interface with other groups
         Decoder(multithreaded=False)(bitstream_path, output_path)  # todo: check interface with other groups
 
         process = subprocess.run(
