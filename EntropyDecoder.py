@@ -45,3 +45,8 @@ class EntropyDecoder:
         value -= 1
 
         return value
+
+
+    # placeholder: will make sense with arothmetic coding
+    def terminate(self):
+        return True

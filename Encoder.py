@@ -34,6 +34,7 @@ class Encoder:
             for xi in range(0,imgWidth,self.block_size):
                 self.encode_block(xi, yi)
         # terminate bitstream
+        self.entropyEncoder.terminate()
         outputBitstream.terminate()
 
 
