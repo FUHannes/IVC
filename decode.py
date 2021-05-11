@@ -18,9 +18,10 @@ def main():
     dec = Decoder(args.bitstream, args.output)
 
     start_time = time.process_time()  # benchmarking speed
-    dec.decode_block()
-    decoding_time = time.process_time() - start_time   
+    dec.decode_image()
+    decoding_time = time.process_time() - start_time
+    print(f'it took {decoding_time * 1000}ms to decode')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
