@@ -1,3 +1,4 @@
+import numpy as np
 from IBitstream import IBitstream
 
 
@@ -12,7 +13,7 @@ class EntropyDecoder:
         out_integer_array = []
         for _ in range(blockSize**2):
             out_integer_array.append(self.readQIndex())
-        return out_integer_array
+        return np.array(out_integer_array).reshape([blockSize, blockSize])
 
     def readQIndex( self ):
         

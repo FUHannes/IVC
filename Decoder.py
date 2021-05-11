@@ -1,5 +1,5 @@
 import numpy as np
-from entropy_decoder import EntropyDecoder
+from EntropyDecoder import EntropyDecoder
 from IBitstream import IBitstream
 
 
@@ -19,7 +19,6 @@ class Decoder:
     def decode_block(self, x: int, y: int):
         # entropy decoding (EntropyDecoder)
         ent_dec_block = self.ent_dec.readQIndexBlock(self.block_size)
-        ent_dec_block = np.array(ent_dec_block).reshape([self.block_size, self.block_size])
         # de-quantization
         recBlock = ent_dec_block * self.qs
         # adding prediction (128)
