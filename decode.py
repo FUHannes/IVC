@@ -18,7 +18,6 @@ def main():
     dec = Decoder(args.bitstream, args.output)
 
     start_time = time.process_time()  # benchmarking speed
-    dec(args.bitstream, args.output)  # decoding
     dec.decode_image()
     decoding_time = time.process_time() - start_time
     print(f'it took {decoding_time * 1000}ms to decode')
