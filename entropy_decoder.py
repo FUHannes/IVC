@@ -1,10 +1,10 @@
 from IBitstream import IBitstream
 
+
 # class for all the entropy decoding
 class EntropyDecoder:
     def __init__(self, bitstream: IBitstream):
         self.bitstream = bitstream
-        self.weird_flags_aber_ok = weird_flags_aber_ok
 
     def readQIndexBlock( self, blockSize: int ):
         # loop over all positions inside NxN block
@@ -21,7 +21,7 @@ class EntropyDecoder:
 
         # (2) read sign bit for absolutes values > 0
         if value:
-            value *= -1 if self.bitstream.getBit() else 1
+            value *= -1 if self.bitstream.get_bit() else 1
             
         # (3) return value
         return value

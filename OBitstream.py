@@ -1,19 +1,20 @@
 # authors: Giovanni Sorice, Manuel Welte
 
 class OBitstream:
-    def __init__(self, byteArray: []):
-        self.byteArray = byteArray
+    # constructor: open specified output file and initialize members
+    def __init__(self, filename):
+        self.file = open(filename, 'wb')
         self.buffer = 0
         self.bit_counter = 0
 
     # add bit to bitstream
     def addBit(self, bit: int):  # only 0 or 1
-        self.buffer = self.buffer << 1
-        self.buffer += bit
+        self.buffer = ( self.buffer << 1 ) | int(bool(bit))
         self.bit_counter += 1
         if self.bit_counter == 8:
-            self.byteArray.append(self.buffer.to_bytes(1, byteorder='big'))
-            print(self.buffer)
+            if not self.file:
+                raise Exception('OBitstream: File not open')
+            self.file.write(self.buffer.to_bytes(1, byteorder='big'))
             self.buffer = 0
             self.bit_counter = 0
 
@@ -25,21 +26,15 @@ class OBitstream:
             self.addBit(bit)
 
     # write zeros to fill last byte
-    def byteAlign(self) -> list:
+    def byteAlign(self):
         if self.bit_counter != 0:
             for i in range(self.bit_counter, 8):
                 # Take the single interesting bit
                 self.addBit(0)
-        return self.byteArray
 
+    # terminate bitstream (and close file)
+    def terminate(self):
+        self.byteAlign()
+        self.file.close()
+        self.file = None
 
-def test_OBitstream():
-    OB = OBitstream([])
-    OB.addBit(1)
-    OB.addBits(9, 5)
-    OB.addBits(5, 3)
-    OB.addBits(28, 6)
-    OB.addBit(0)
-    OB.addBits(2, 2)
-    l = [(166).to_bytes(1, byteorder='big'), (184).to_bytes(1, byteorder='big'), (128).to_bytes(1, byteorder='big')]
-    assert OB.byteAlign() == l

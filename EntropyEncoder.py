@@ -1,6 +1,3 @@
-from OBitstream import OBitstream
-from typing import Callable, List
-from typing import Callable, List
 
 from OBitstream import OBitstream
 
@@ -39,53 +36,10 @@ class EntropyEncoder:
         elif level < 0:
             self.bitstream.addBit(1)
 
-    def writeQIndexBlock(self, values: List[int]):
+    def writeQIndexBlock(self, qIdxBlock):
         """ Writes all values sequential to the bitstream
         """
-        for value in values:
-            self.writeQIndex(value)
+        qIdxList = qIdxBlock.ravel()
+        for k in range( qIdxList.shape[0] ):
+            self.writeQIndex(qIdxList[k])
 
-
-def runTest(name: str, testFunc: Callable):
-    tName = f'{name} > {testFunc.__name__}'
-    print(f'{tName} | Running')
-    try:
-        testFunc()
-    except Exception as e:
-        print(f'{tName} failed: {e}')
-        raise e
-    print(f'{tName} | Finished')
-
-
-def test_EntropyEncoder():
-    def test1():
-        stream = OBitstream([])
-        enc = EntropyEncoder(stream)
-        enc.writeQIndex(0)
-        enc.bitstream.byteAlign()
-        # 1 [000 0000]
-        assert (enc.bitstream.byteArray == [b'\x80'])
-
-    def test2():
-        stream = OBitstream([])
-        enc = EntropyEncoder(stream)
-        enc.writeQIndex(16)
-        enc.bitstream.byteAlign()
-        # 0000 1000 1 [000 0000]
-        assert (enc.bitstream.byteArray == [b'\x08', b'\x80'])
-
-    def test3():
-        stream = OBitstream([])
-        enc = EntropyEncoder(stream)
-        enc.writeQIndex(-31)
-        enc.bitstream.byteAlign()
-        # 0000 0100 0001 [0000]
-        assert (enc.bitstream.byteArray == [b'\x04', b'\x10'])
-
-    runTest('EntropyEncoder', test1)
-    runTest('EntropyEncoder', test2)
-    runTest('EntropyEncoder', test3)
-
-
-if __name__ == '__main__':
-    test_EntropyEncoder()
