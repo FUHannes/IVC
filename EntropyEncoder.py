@@ -43,3 +43,7 @@ class EntropyEncoder:
         for k in range( qIdxList.shape[0] ):
             self.writeQIndex(qIdxList[k])
 
+    # placeholder: will make sense for arithmetic coding
+    def terminate(self):
+        return True
+

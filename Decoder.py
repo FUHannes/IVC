@@ -38,4 +38,5 @@ class Decoder:
         for yi in range(0,self.image_height,self.block_size):
             for xi in range(0,self.image_width,self.block_size):
                 self.decode_block(xi, yi)
+        self.ent_dec.terminate()
         self.write_out()
