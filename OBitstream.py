@@ -26,9 +26,10 @@ class OBitstream:
 
     # write zeros to fill last byte
     def byteAlign(self) -> list:
-        for i in range(self.bit_counter, 8):
-            # Take the single interesting bit
-            self.addBit(0)
+        if self.bit_counter != 0:
+            for i in range(self.bit_counter, 8):
+                # Take the single interesting bit
+                self.addBit(0)
         return self.byteArray
 
 

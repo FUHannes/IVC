@@ -1,6 +1,6 @@
 import numpy as np
-from entropy_decoder import EntropyDecoder
-from IBitstream import IBitstream
+import EntropyDecoder
+import IBitstream
 
 
 class Decoder:
