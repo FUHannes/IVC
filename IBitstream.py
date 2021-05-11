@@ -1,24 +1,26 @@
-from bitarray import bitarray
-
 
 class IBitstream:
-    def __init__(self, filename=None):
-        self.filename = filename
-        self._bitarray = None
-        self.read_file()
-
-    def read_file(self):
-        if self.filename:
-            with open(self.filename, 'rb') as fp:
-                self._bitarray = bitarray()
-                self._bitarray.fromfile(fp)
+    # constructor: open specified input file (and read all data)
+    def __init__(self, filename):
+        self.file = open(filename, 'rb')
+        if not self.file:
+            raise Exception('IBitstream: Could not open file')
+        self.availBits = 0
+        self.buffer = 0
 
     def get_bit(self) -> int:
         """Reads a single bit from the bitstream
 
             :return next bit value 0 or 1
         """
-        return self._bitarray.pop(0)
+        if self.availBits == 0:
+            byte_s = self.file.read(1)
+            if not byte_s:
+                raise Exception('IBitstream: Tried to read byte after eof')
+            self.buffer = byte_s[0]
+            self.availBits = 8
+        self.availBits -= 1
+        return ( self.buffer >> self.availBits ) & 1
 
     def get_bits(self, num_bits: int) -> int:
         """Read multiple bits from the bitstream, most significant bit first
@@ -27,33 +29,13 @@ class IBitstream:
             :return:    integer representation of bits read
             :raises     IndexError: if bitarray is empty or index is out of range
         """
-        _int = int(self._bitarray[:num_bits].to01(), 2)
-        self._bitarray = self._bitarray[num_bits:]
-        return _int
+        value = 0
+        for _ in range(num_bits):
+            value = value << 1
+            value += self.get_bit()
+        return value
 
-    def num_available_bits(self) -> int:
-        """
+    def byteAlign(self):
+        while (self.availBits != 0):
+            self.get_bit()
 
-        :return: number of still available bits in the bitstream
-        """
-        return len(self._bitarray)
-
-    @property
-    def bitarray(self):
-        return self._bitarray
-
-
-if __name__ == '__main__':
-    i_bit_stream = IBitstream()
-    num_array = [166, 184]
-    _bit_array = bitarray()
-
-    for n in num_array:
-        _bit_array.frombytes(n.to_bytes(1, 'little'))
-
-    i_bit_stream._bitarray = _bit_array
-
-    print(i_bit_stream.get_bit(),   i_bit_stream.bitarray.to01())  # returns 1 010011010111000
-    print(i_bit_stream.get_bits(5), i_bit_stream.bitarray.to01())  # returns 9 1010111000
-    print(i_bit_stream.get_bits(3), i_bit_stream.bitarray.to01())  # returns 5 0111000
-    print(i_bit_stream.get_bits(6), i_bit_stream.bitarray.to01())  # returns 28 0
