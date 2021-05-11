@@ -1,9 +1,7 @@
+from IBitstream import IBitstream
+
 # class for all the entropy decoding
-import IBitstream
-
-
 class EntropyDecoder:
-
     def __init__(self, bitstream: IBitstream):
         self.bitstream = bitstream
 
@@ -30,16 +28,16 @@ class EntropyDecoder:
         # (1) read class index k using unary code (read all bits until next '1'; classIdx = num zeros)
         # (2) read position inside class as fixed-length code of k bits [red bits]
         # (3) return value
-        current_red_code = 1
-        reading_blue_part = True
-        red_length = 0
-        while True:
-            bit = self.bitstream.get_bit()
-            if reading_blue_part:
-                red_length += 1
-                reading_blue_part = not bit
-            else:
-                current_red_code = current_red_code * 2 + bit
-                red_length -= 1
-                if red_length == 0:
-                    return current_red_code - 1
+
+        length = 0
+        while not self.bitstream.get_bit():
+            length += 1
+
+        value = 1
+        if length > 0:
+            value = value << length
+            value += self.bitstream.get_bits(length)
+
+        value -= 1
+
+        return value
