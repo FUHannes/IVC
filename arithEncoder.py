@@ -73,9 +73,16 @@ class ArithEncoder:
 
     # bypass coding of multiple bins
     def encodeBinsEP( self, pattern:int, numBins:int ):
-        while numBins > 0:
-            numBins -= 1
-            self.encodeBinEP( (pattern >> numBins) & 1 )
+        while numBins > 8:
+            numBins -= 8
+            patternPart = ( pattern >> numBins ) & 255
+            self.low = ( self.low << 8 ) + int(self.range * patternPart)
+            self.bitsLeft -= 8
+            self.__test_and_write_out()
+        patternPart = pattern & ( ( 1 << numBins ) - 1 )
+        self.low = ( self.low << numBins ) + int(self.range * patternPart)
+        self.bitsLeft -= numBins
+        self.__test_and_write_out()
 
 
     # finalization of arithmetic codeword (required at end)
