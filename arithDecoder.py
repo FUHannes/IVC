@@ -77,9 +77,29 @@ class ArithDecoder:
     # bypass coding of multiple bins
     def decodeBinsEP( self, numBins: int ) -> int:
         value:int = 0
-        while numBins:
-            numBins -= 1
-            value    = ( value << 1 ) | self.decodeBinEP()
+        while numBins > 8:
+            self.value <<= 8
+            self.value += int( self.bitstream.get_bits(8) << ( 8 + self.bitsNeeded ) )
+            scaledRange:int = self.range << 15
+            for i in range(8):
+                value += value
+                scaledRange >>= 1
+                if self.value >= scaledRange:
+                    value += 1
+                    self.value -= scaledRange
+            numBins -= 8
+        self.bitsNeeded += numBins
+        self.value <<= numBins
+        if self.bitsNeeded >= 0:
+            self.value += int( self.bitstream.get_bits(8) << self.bitsNeeded )
+            self.bitsNeeded -= 8
+        scaledRange:int = self.range << (numBins + 7)
+        for i in range(numBins):
+            value += value
+            scaledRange >>= 1
+            if self.value >= scaledRange:
+                value += 1
+                self.value -= scaledRange
         return value
 
 

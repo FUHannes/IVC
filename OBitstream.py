@@ -20,17 +20,28 @@ class OBitstream:
 
     # write numBits from bitPattern (most significant bit first)
     def addBits(self, bitPattern: int, numBits: int):
-        for i in range(numBits, 0, -1):
-            # Take the single interesting bit
-            bit = (bitPattern >> (i - 1)) & int(1)
-            self.addBit(bit)
+        if self.bit_counter + numBits < 8:
+            self.buffer = (self.buffer << numBits) | int( bitPattern & ( ( 1 << numBits ) - 1 ) )
+            self.bit_counter += numBits
+            return
+        if not self.file:
+            raise Exception('OBitstream: File not open')
+        if self.bit_counter:
+            freeBits = 8 - self.bit_counter
+            self.buffer = (self.buffer << freeBits ) | int( (bitPattern >> (numBits-freeBits)) & ( ( 1 << freeBits ) - 1 ) )
+            numBits -= freeBits
+            self.file.write(self.buffer.to_bytes(1, byteorder='big'))
+        while numBits >= 8:
+            numBits -= 8
+            self.buffer = ( bitPattern >> numBits ) & 255
+            self.file.write(self.buffer.to_bytes(1, byteorder='big'))
+        self.buffer = int( bitPattern & ( ( 1 << numBits ) - 1 ) )
+        self.bit_counter = numBits
 
     # write zeros to fill last byte
     def byteAlign(self):
         if self.bit_counter != 0:
-            for i in range(self.bit_counter, 8):
-                # Take the single interesting bit
-                self.addBit(0)
+            self.addBits( 0, 8 - self.bit_counter )
 
     # terminate bitstream (and close file)
     def terminate(self):

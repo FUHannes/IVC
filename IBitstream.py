@@ -1,6 +1,6 @@
 
 class IBitstream:
-    # constructor: open specified input file (and read all data)
+    # constructor: open specified input file
     def __init__(self, filename):
         self.file = open(filename, 'rb')
         if not self.file:
@@ -29,13 +29,29 @@ class IBitstream:
             :return:    integer representation of bits read
             :raises     IndexError: if bitarray is empty or index is out of range
         """
+        if num_bits <= self.availBits:
+            self.availBits -= num_bits
+            return (self.buffer >> self.availBits) & ( ( 1 << num_bits ) - 1 )
         value = 0
-        for _ in range(num_bits):
-            value = value << 1
-            value += self.get_bit()
+        if self.availBits:
+            value = self.buffer & ( ( 1 << self.availBits ) - 1 )
+            num_bits -= self.availBits
+            self.availBits = 0
+        while num_bits >= 8:
+            byte_s = self.file.read(1)
+            if not byte_s:
+                raise Exception('IBitstream: Tried to read byte after eof')
+            value = ( value << 8 ) | int(byte_s[0])
+            num_bits -= 8
+        if num_bits > 0:
+            byte_s = self.file.read(1)
+            if not byte_s:
+                raise Exception('IBitstream: Tried to read byte after eof')
+            self.buffer = byte_s[0]
+            self.availBits = 8 - num_bits
+            value = ( value << num_bits ) | ( self.buffer >> self.availBits )
         return value
 
     def byteAlign(self):
-        while (self.availBits != 0):
-            self.get_bit()
+        self.availBits = 0
 
