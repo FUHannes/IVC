@@ -27,9 +27,9 @@ def main():
                         dest='bitstream')
     args = parser.parse_args()
 
-    start_time = time.process_time()                # benchmarking speed
+    start_time = time.process_time()  # benchmarking speed
     enc = Encoder(args.input, args.bitstream, args.blocksize, args.qp)
-    enc.encode_image()    # encoding
+    enc.encode_image()  # encoding
     encoding_time = time.process_time() - start_time
     print(f'it took {encoding_time * 1000} ms to encode')
 

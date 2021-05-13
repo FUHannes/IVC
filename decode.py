@@ -3,6 +3,7 @@ import time
 
 from Decoder import Decoder
 
+
 def main():
     parser = argparse.ArgumentParser(description='PGM decoder')
     parser.add_argument('-b', '--bitstream',
