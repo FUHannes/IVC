@@ -26,14 +26,25 @@ class EntropyEncoder:
     def writeQIndex(self, level: int):
         """ Writes a positive or negative value with exp golomb coding and sign bit
         """
-
-        # bitsUsed is 'real' bits used - 1
-        self.expGolomb(abs(level))
-
-        if level > 0:
+        if level == 0:
             self.bitstream.addBit(0)
-        elif level < 0:
+            return
+        elif abs(level) == 1:
             self.bitstream.addBit(1)
+            self.bitstream.addBit(0)
+            self.bitstream.addBit(level > 0)
+            return
+
+        # sig flag: is level unequal to zero?
+        self.bitstream.addBit(1)
+
+        # gt1 flag: is absolute value greater than one?
+        self.bitstream.addBit(abs(level) > 1)
+
+        # remainder
+        self.expGolomb(abs(level)-2)
+
+        self.bitstream.addBit(level > 0)
 
     def writeQIndexBlock(self, qIdxBlock):
         """ Writes all values sequential to the bitstream
