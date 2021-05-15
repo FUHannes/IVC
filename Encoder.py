@@ -78,11 +78,10 @@ class Encoder:
 
     def reconstruct_trans_coef(self, q_idx_block, x, y):
         # TODO: reconstruct transform coefficients from quantization indexes (invoke 2D Transform inverse)
-        rec_block = q_idx_block
         # prediction
         # TODO: invoke prediction function (see 4.3 DC prediction)
-        rec_block += 128
-        self.image_reconstructed[y:y + self.block_size, x:x + self.block_size] = np.clip(rec_block, 0, 255).astype('uint8')
+        q_idx_block += 128
+        self.image_reconstructed[y:y + self.block_size, x:x + self.block_size] = np.clip(q_idx_block, 0, 255).astype('uint8')
 
     # encode block of current picture
     def encode_block(self, x: int, y: int):
@@ -93,8 +92,7 @@ class Encoder:
         # TODO: invoke 2D Transform (see 4.1)
         # quantization
         qIdxBlock = np.round(currBlock / self.qs, decimals=0).astype('int')
-        if self.reconstruction_path:
-            self.reconstruct_trans_coef(currBlock, x, y)
+        self.reconstruct_trans_coef(currBlock, x, y)
         # entropy coding
         self.entropyEncoder.writeQIndexBlock(qIdxBlock)
 
