@@ -10,7 +10,7 @@ class IntraPredictionCalculator:
         self.image = image
         self.blocksize = blocksize
 
-    def get_prediction(self, x: int, y: int, prediction_mode: PredictionMode) -> int:
+    def get_prediction(self, x: int, y: int, prediction_mode: PredictionMode) -> np.ndarray:
         if prediction_mode == PredictionMode.DC_PREDICTION:
             return self.get_dc_prediction(x, y)
         else:
@@ -21,4 +21,4 @@ class IntraPredictionCalculator:
         top_border  = self.image[y-1:y, x:x+self.blocksize].ravel() if y > 0 else []
         border = np.concatenate([left_border, top_border])
         prediction = round(border.mean()) if border.size > 0 else 128
-        return prediction
+        return np.full([self.blocksize, self.blocksize], prediction)

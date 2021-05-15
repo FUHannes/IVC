@@ -2,6 +2,8 @@ import numpy as np
 
 from EntropyEncoder import EntropyEncoder
 from OBitstream import OBitstream
+from IntraPredictionCalculator import IntraPredictionCalculator
+from IntraPredictionCalculator import PredictionMode
 
 
 # read PGM image
@@ -63,7 +65,8 @@ class Encoder:
         self.image_reconstructed = np.zeros([self.image_height, self.image_width], dtype=np.uint8)
         # open bitstream and write header
         outputBitstream = self.init_obitstream(self.image_height, self.image_width, self.output_path)
-        # open reconstructed bitstream and write header
+        # initialize intra prediction calculator
+        self.intra_pred_calc = IntraPredictionCalculator(self.image_reconstructed, self.block_size)
         # initialize entropy encoder
         self.entropyEncoder = EntropyEncoder(outputBitstream)
         # process image
@@ -76,12 +79,12 @@ class Encoder:
         if self.reconstruction_path:
             self.write_out()
 
-    def reconstruct_block(self, q_idx_block, x, y):
+    def reconstruct_block(self, pred_block, q_idx_block, x, y):
         # reconstruct transform coefficients from quantization indexes
         recBlock = q_idx_block * self.qs
         # TODO: invoke 2D Transform inverse
         # TODO: invoke prediction function (see 4.3 DC prediction) instead of adding 128
-        recBlock += 128
+        recBlock += pred_block
         self.image_reconstructed[y:y + self.block_size, x:x + self.block_size] = np.clip(recBlock, 0, 255).astype('uint8')
 
     # encode block of current picture
@@ -89,12 +92,13 @@ class Encoder:
         # accessor for current block
         orgBlock = self.image[y:y + self.block_size, x:x + self.block_size]
         # prediction
-        predError = orgBlock.astype('int') - 128
+        predBlock = self.intra_pred_calc.get_prediction(x, y, PredictionMode.DC_PREDICTION)
+        predError = orgBlock.astype('int') - predBlock
         # TODO: invoke 2D Transform (see 4.1)
         # quantization
         qIdxBlock = np.round(predError / self.qs, decimals=0).astype('int')
         # reconstruction
-        self.reconstruct_block(qIdxBlock, x, y)
+        self.reconstruct_block(predBlock, qIdxBlock, x, y)
         # entropy coding
         self.entropyEncoder.writeQIndexBlock(qIdxBlock)
 

@@ -2,6 +2,8 @@ import numpy as np
 
 from EntropyDecoder import EntropyDecoder
 from IBitstream import IBitstream
+from IntraPredictionCalculator import IntraPredictionCalculator
+from IntraPredictionCalculator import PredictionMode
 
 
 class Decoder:
@@ -15,6 +17,7 @@ class Decoder:
         self.qp = self.bitstream.get_bits(8)
         self.qs = 2 ** (self.qp / 4)
         self.image = np.zeros([self.image_height, self.image_width], dtype=np.uint8)
+        self.intra_pred_calc = IntraPredictionCalculator(self.image, self.block_size)
         self.ent_dec = EntropyDecoder(self.bitstream)
 
     def decode_block(self, x: int, y: int):
@@ -22,8 +25,8 @@ class Decoder:
         ent_dec_block = self.ent_dec.readQIndexBlock(self.block_size)
         # de-quantization
         recBlock = ent_dec_block * self.qs
-        # adding prediction (128)
-        recBlock += 128
+        # adding prediction
+        recBlock += self.intra_pred_calc.get_prediction(x, y, PredictionMode.DC_PREDICTION)
         # clipping (0,255) and store to image
         self.image[y:y + self.block_size, x:x + self.block_size] = np.clip(recBlock, 0, 255).astype('uint8')
 
