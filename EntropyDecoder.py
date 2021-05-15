@@ -2,6 +2,11 @@ import numpy as np
 
 from IBitstream import IBitstream
 
+def sign(b):
+    if b:
+        return 1
+    else:
+        return -1
 
 # class for all the entropy decoding
 class EntropyDecoder:
@@ -17,13 +22,18 @@ class EntropyDecoder:
         return np.array(out_integer_array).reshape([blockSize, blockSize])
 
     def readQIndex(self):
+        sig_flag = self.bitstream.get_bit()
+        if sig_flag == 0:
+            return 0
+
+        gt1_flag = self.bitstream.get_bit()
+        if gt1_flag == 0:
+            sign_flag = self.bitstream.get_bit()
+            return sign(sign_flag)
 
         # (1) read expGolomb for absolute value
-        value = self.expGolomb()
-
-        # (2) read sign bit for absolutes values > 0
-        if value:
-            value *= -1 if self.bitstream.get_bit() else 1
+        value = self.expGolomb()+2
+        value *= sign(self.bitstream.get_bit())
 
         # (3) return value
         return value
