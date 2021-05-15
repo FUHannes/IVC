@@ -21,7 +21,7 @@ def _read_image(input_path):
     width = int(width[2:])
     height = int(height[:len(height) - 3])
     # create image and read data
-    image = np.zeros([height, width])
+    image = np.zeros([height, width], dtype=np.uint8)
     for h in range(0, height):
         for w in range(0, width):
             byte = file.read(1)
@@ -76,23 +76,25 @@ class Encoder:
         if self.reconstruction_path:
             self.write_out()
 
-    def reconstruct_trans_coef(self, q_idx_block, x, y):
-        # TODO: reconstruct transform coefficients from quantization indexes (invoke 2D Transform inverse)
-        # prediction
-        # TODO: invoke prediction function (see 4.3 DC prediction)
-        q_idx_block += 128
-        self.image_reconstructed[y:y + self.block_size, x:x + self.block_size] = np.clip(q_idx_block, 0, 255).astype('uint8')
+    def reconstruct_block(self, q_idx_block, x, y):
+        # reconstruct transform coefficients from quantization indexes
+        recBlock = q_idx_block * self.qs
+        # TODO: invoke 2D Transform inverse
+        # TODO: invoke prediction function (see 4.3 DC prediction) instead of adding 128
+        recBlock += 128
+        self.image_reconstructed[y:y + self.block_size, x:x + self.block_size] = np.clip(recBlock, 0, 255).astype('uint8')
 
     # encode block of current picture
     def encode_block(self, x: int, y: int):
         # accessor for current block
-        currBlock = self.image[y:y + self.block_size, x:x + self.block_size]
+        orgBlock = self.image[y:y + self.block_size, x:x + self.block_size]
         # prediction
-        currBlock -= 128
+        predError = orgBlock.astype('int') - 128
         # TODO: invoke 2D Transform (see 4.1)
         # quantization
-        qIdxBlock = np.round(currBlock / self.qs, decimals=0).astype('int')
-        self.reconstruct_trans_coef(currBlock, x, y)
+        qIdxBlock = np.round(predError / self.qs, decimals=0).astype('int')
+        # reconstruction
+        self.reconstruct_block(qIdxBlock, x, y)
         # entropy coding
         self.entropyEncoder.writeQIndexBlock(qIdxBlock)
 
