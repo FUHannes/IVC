@@ -1,4 +1,5 @@
 import numpy as np
+# import matplotlib.pyplot as plt
 
 from EntropyEncoder import EntropyEncoder
 from OBitstream import OBitstream
@@ -42,12 +43,12 @@ class Encoder:
         self.block_size = block_size
         self.qp = QP
         self.qs = 2 ** (self.qp / 4)
-        self.image = None
         self.image_reconstructed = None
-        self.image_width = 0
-        self.image_height = 0
         self.entropyEncoder = None
         self.reconstruction_path = reconstruction_path
+        self._read_image()
+        self.pad_height  = self.block_size - self.image_height%self.block_size if self.image_height%self.block_size != 0 else 0
+        self.pad_width  = self.block_size - self.image_width%self.block_size if self.image_width%self.block_size != 0 else 0
 
     def init_obitstream(self, img_height, img_width, path):
         outputBitstream = OBitstream(path)
@@ -57,13 +58,24 @@ class Encoder:
         outputBitstream.addBits(self.qp, 8)
         return outputBitstream
 
-    # Gets an image and return an encoded bitstream. 
-    def encode_image(self):
-        # read image
+    #read image
+    def _read_image(self):
         self.image = _read_image(self.input_path)
         self.image_height = self.image.shape[0]
         self.image_width = self.image.shape[1]
-        self.image_reconstructed = np.zeros([self.image_height, self.image_width], dtype=np.uint8)
+
+    def _add_padding(self):       
+        self.image = np.pad(self.image,((0,self.pad_height),(0,self.pad_width)),"edge" )    
+
+        # for testing (include matplotlib)    
+        # plt.imshow(image)
+        # plt.show()
+
+    # Gets an image and return an encoded bitstream. 
+    def encode_image(self):
+        #add padding
+        self._add_padding()
+        self.image_reconstructed = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width], dtype=np.uint8)
         # open bitstream and write header
         outputBitstream = self.init_obitstream(self.image_height, self.image_width, self.output_path)
         # initialize intra prediction calculator
@@ -71,8 +83,8 @@ class Encoder:
         # initialize entropy encoder
         self.entropyEncoder = EntropyEncoder(outputBitstream)
         # process image
-        for yi in range(0, self.image_height, self.block_size):
-            for xi in range(0, self.image_width, self.block_size):
+        for yi in range(0, self.image_height + self.pad_height, self.block_size):
+            for xi in range(0,self.image_width + self.pad_width, self.block_size):
                 self.encode_block(xi, yi)
         # terminate bitstream
         self.entropyEncoder.terminate()
