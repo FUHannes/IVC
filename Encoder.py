@@ -34,6 +34,27 @@ def _read_image(input_path):
     return image
 
 
+def sort_diagonal(mat: np.ndarray) -> np.ndarray:
+    res = []
+    (rows, columns) = mat.shape
+    # There will be ROW+COL-1 lines in the output
+    for line in range(1, (rows + columns)):
+        # Get column index of the first element
+        # in this line of output. The index is 0
+        # for first ROW lines and line - ROW for
+        # remaining lines
+        start_col = max(0, line - rows)
+ 
+        # Get count of elements in this line.
+        # The count of elements is equal to
+        # minimum of line number, COL-start_col and ROW
+        count = min(line, (columns - start_col), rows)
+ 
+        # Print elements of this line
+        for j in range(0, count):
+            res.append(mat[min(rows, line) - j - 1][start_col + j])
+    return np.array(res)
+
 class Encoder:
 
     def __init__(self, input_path, output_path, block_size, QP, reconstruction_path=None):
@@ -102,8 +123,10 @@ class Encoder:
         qIdxBlock = np.round(transCoeff / self.qs, decimals=0).astype('int')
         # reconstruction
         self.reconstruct_block(predBlock, qIdxBlock, x, y)
+        # diagonal scan
+        diagonal = sort_diagonal(qIdxBlock)
         # entropy coding
-        self.entropyEncoder.writeQIndexBlock(qIdxBlock)
+        self.entropyEncoder.writeQIndexBlock(diagonal)
 
     # opening and writing a binary file
     def write_out(self):

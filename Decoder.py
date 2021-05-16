@@ -6,6 +6,58 @@ from dct import Transformation
 from IntraPredictionCalculator import IntraPredictionCalculator
 from IntraPredictionCalculator import PredictionMode
 
+"""
+        
+         0 1 2 3
+       0 0 1 2  
+       1 3 4 5
+       2 6 7 8
+                   
+(0,0)
+==
+(0,1)
+(1,0)
+==
+(0,2)
+(1,1)
+(2,0)
+==
+maxBound = y
+if x >= maxBound:
+    x = y + 1
+    y = maxBound
+(1,2)
+(2,1)
+maxVal = max(x,y)
+==
+x and y == maxVal
+(2,2)
+
+
+0 3 1 6 4 2 7 5 8
+"""
+
+def de_diagonalize(arr: np.ndarray) -> np.ndarray:
+    x = 0
+    y = 0
+    x_start = 0
+
+    wx, wy = arr.shape
+    res = np.zeros(arr.shape, dtype=arr.dtype)
+    arr = arr.flatten()
+    for i in range(arr.size):
+        res[y][x] = arr[i]
+        x += 1
+        y -= 1
+        if y < 0 or x >= wx:
+            y = min(x, wx - 1)
+            
+            if x >= wx:
+                x_start += 1
+            x = x_start
+    return res
+
+
 
 class Decoder:
 
@@ -24,8 +76,10 @@ class Decoder:
     def decode_block(self, x: int, y: int):
         # entropy decoding (EntropyDecoder)
         ent_dec_block = self.ent_dec.readQIndexBlock(self.block_size)
+        # de-diagonal scan
+        ordered_block = de_diagonalize(ent_dec_block)
         # de-quantization
-        recBlock = ent_dec_block * self.qs
+        recBlock = ordered_block * self.qs
         # idct
         recBlock = Transformation().backward_dct(recBlock)
         # adding prediction
