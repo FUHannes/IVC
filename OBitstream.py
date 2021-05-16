@@ -33,7 +33,7 @@ class OBitstream:
             self.file.write(self.buffer.to_bytes(1, byteorder='big'))
         while numBits >= 8:
             numBits -= 8
-            self.buffer = (bitPattern >> numBits) & 255
+            self.buffer = int(bitPattern >> numBits) & 255
             self.file.write(self.buffer.to_bytes(1, byteorder='big'))
         self.buffer = int(bitPattern & ((1 << numBits) - 1))
         self.bit_counter = numBits
