@@ -90,6 +90,7 @@ class Encoder:
         self.entropyEncoder.terminate()
         outputBitstream.terminate()
         if self.reconstruction_path:
+            self.image_reconstructed = self.image_reconstructed[:self.image_height,:self.image_width]
             self.write_out()
 
     def reconstruct_block(self, pred_block, q_idx_block, x, y):
