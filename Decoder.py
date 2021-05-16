@@ -6,36 +6,6 @@ from dct import Transformation
 from IntraPredictionCalculator import IntraPredictionCalculator
 from IntraPredictionCalculator import PredictionMode
 
-"""
-        
-         0 1 2 3
-       0 0 1 2  
-       1 3 4 5
-       2 6 7 8
-                   
-(0,0)
-==
-(0,1)
-(1,0)
-==
-(0,2)
-(1,1)
-(2,0)
-==
-maxBound = y
-if x >= maxBound:
-    x = y + 1
-    y = maxBound
-(1,2)
-(2,1)
-maxVal = max(x,y)
-==
-x and y == maxVal
-(2,2)
-
-
-0 3 1 6 4 2 7 5 8
-"""
 
 def de_diagonalize(arr: np.ndarray) -> np.ndarray:
     x = 0
