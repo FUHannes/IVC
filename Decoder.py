@@ -1,7 +1,7 @@
 import numpy as np
 from EntropyDecoder import EntropyDecoder
 from IBitstream import IBitstream
-
+from dct import Transformation
 
 class Decoder:
 
@@ -21,6 +21,8 @@ class Decoder:
         ent_dec_block = self.ent_dec.readQIndexBlock(self.block_size)
         # de-quantization
         recBlock = ent_dec_block * self.qs
+        # idct
+        recBlock = Transformation().backward_dct(recBlock)
         # adding prediction (128)
         recBlock += 128
         # clipping (0,255) and store to image

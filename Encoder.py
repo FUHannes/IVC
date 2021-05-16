@@ -2,6 +2,7 @@ import numpy as np
 
 from EntropyEncoder import EntropyEncoder
 from OBitstream import OBitstream
+from dct import Transformation
 
 
 class Encoder:
@@ -44,6 +45,8 @@ class Encoder:
         currBlock = self.image[y:y+self.block_size, x:x+self.block_size]
         # prediction
         currBlock -= 128
+        # dct
+        currBlock = Transformation().forward_dct(currBlock)
         # quantization
         qIdxBlock = np.round( currBlock / self.qs, decimals=0).astype('int')
         # entropy coding
