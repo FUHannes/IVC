@@ -17,9 +17,11 @@ class Decoder:
         self.block_size = self.bitstream.get_bits(16)
         self.qp = self.bitstream.get_bits(8)
         self.qs = 2 ** (self.qp / 4)
-        self.image = np.zeros([self.image_height, self.image_width], dtype=np.uint8)
-        self.intra_pred_calc = IntraPredictionCalculator(self.image, self.block_size)
         self.ent_dec = EntropyDecoder(self.bitstream)
+        self.pad_height  = self.block_size - self.image_height%self.block_size if self.image_height%self.block_size != 0 else 0
+        self.pad_width  = self.block_size - self.image_width%self.block_size if self.image_width%self.block_size != 0 else 0
+        self.image = np.zeros([self.image_height + self.pad_height, self.image_width+self.pad_width], dtype=np.uint8)
+        self.intra_pred_calc = IntraPredictionCalculator(self.image, self.block_size)
 
     def decode_block(self, x: int, y: int):
         # entropy decoding (EntropyDecoder)
@@ -41,9 +43,13 @@ class Decoder:
         out_file.close()
         return True
 
+    def _remove_padding(self):
+        self.image = self.image[:self.image_height,:self.image_width]
+
     def decode_image(self):
-        for yi in range(0, self.image_height, self.block_size):
-            for xi in range(0, self.image_width, self.block_size):
+        for yi in range(0, self.image_height+self.pad_height, self.block_size):
+            for xi in range(0, self.image_width+self.pad_width, self.block_size):
                 self.decode_block(xi, yi)
+        self._remove_padding()
         self.ent_dec.terminate()
         self.write_out()
