@@ -5,3 +5,10 @@ out
 __*__
 
 .DS_Store
+
+# exclude image files and psnr curve pickles
+/images/*/*.pgm
+/images/*/*.txt
+/images/*/*.jpeg
+*.png
+dat/*/
