@@ -35,7 +35,8 @@ def main():
         versions = ','.join(versions)
         plot_data(args.filename, version, versions)
     else:
-        generate_data(args.filename, args.version, 8)
+        if not args.print:
+            generate_data(args.filename, args.version, 8)
         plot_data(args.filename, args.version, args.versions)
 
 
