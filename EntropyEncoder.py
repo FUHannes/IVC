@@ -1,5 +1,6 @@
 from OBitstream import OBitstream
-
+from arithBase import ProbModel
+from arithEncoder import ArithEncoder
 
 def bitsUsed(value: int) -> int:
     counter = 0
@@ -13,38 +14,39 @@ def bitsUsed(value: int) -> int:
 
 class EntropyEncoder:
     def __init__(self, bitstream: OBitstream):
-        self.bitstream = bitstream
+        self.arith_enc = ArithEncoder(bitstream)
+        self.prob_sig_flag = ProbModel()
 
     def expGolomb(self, value: int):
         assert (value >= 0)
 
         classIndex = bitsUsed(value + 1) - 1  # class index
 
-        self.bitstream.addBits(1, classIndex + 1)
-        self.bitstream.addBits(value + 1, classIndex)
+        self.arith_enc.encodeBinsEP(1, classIndex + 1)
+        self.arith_enc.encodeBinsEP(value + 1, classIndex)
 
     def writeQIndex(self, level: int):
         """ Writes a positive or negative value with exp golomb coding and sign bit
         """
         if level == 0:
-            self.bitstream.addBit(0)
+            self.arith_enc.encodeBin(0, self.prob_sig_flag)
             return
         elif abs(level) == 1:
-            self.bitstream.addBit(1)
-            self.bitstream.addBit(0)
-            self.bitstream.addBit(level > 0)
+            self.arith_enc.encodeBin(1, self.prob_sig_flag)
+            self.arith_enc.encodeBinEP(0)
+            self.arith_enc.encodeBinEP(level > 0)
             return
 
         # sig flag: is level unequal to zero?
-        self.bitstream.addBit(1)
+        self.arith_enc.encodeBin(1, self.prob_sig_flag)
 
         # gt1 flag: is absolute value greater than one?
-        self.bitstream.addBit(abs(level) > 1)
+        self.arith_enc.encodeBinEP(abs(level) > 1)
 
         # remainder
         self.expGolomb(abs(level)-2)
 
-        self.bitstream.addBit(level > 0)
+        self.arith_enc.encodeBinEP(level > 0)
 
     def writeQIndexBlock(self, qIdxBlock):
         """ Writes all values sequential to the bitstream
@@ -55,4 +57,5 @@ class EntropyEncoder:
 
     # placeholder: will make sense for arithmetic coding
     def terminate(self):
+        self.arith_enc.finalize()
         return True

@@ -16,7 +16,7 @@ class IntraPredictionCalculator:
         else:
             raise Exception('Unsupported prediction mode')
 
-    def get_dc_prediction(self, x: int, y: int) -> int:
+    def get_dc_prediction(self, x: int, y: int) -> np.ndarray:
         left_border = self.image[y:y+self.blocksize, x-1:x].ravel() if x > 0 else []
         top_border  = self.image[y-1:y, x:x+self.blocksize].ravel() if y > 0 else []
         border = np.concatenate([left_border, top_border])

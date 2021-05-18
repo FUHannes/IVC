@@ -1,4 +1,6 @@
 import numpy as np
+from arithBase import ProbModel
+from arithDecoder import ArithDecoder
 
 from IBitstream import IBitstream
 
@@ -11,7 +13,8 @@ def sign(b):
 # class for all the entropy decoding
 class EntropyDecoder:
     def __init__(self, bitstream: IBitstream):
-        self.bitstream = bitstream
+        self.arith_dec = ArithDecoder(bitstream)
+        self.prob_sig_flag = ProbModel()
 
     def readQIndexBlock(self, blockSize: int):
         # loop over all positions inside NxN block
@@ -22,18 +25,18 @@ class EntropyDecoder:
         return np.array(out_integer_array).reshape([blockSize, blockSize])
 
     def readQIndex(self):
-        sig_flag = self.bitstream.get_bit()
+        sig_flag = self.arith_dec.decodeBin(self.prob_sig_flag)
         if sig_flag == 0:
             return 0
 
-        gt1_flag = self.bitstream.get_bit()
+        gt1_flag = self.arith_dec.decodeBinEP()
         if gt1_flag == 0:
-            sign_flag = self.bitstream.get_bit()
+            sign_flag = self.arith_dec.decodeBinEP()
             return sign(sign_flag)
 
         # (1) read expGolomb for absolute value
         value = self.expGolomb()+2
-        value *= sign(self.bitstream.get_bit())
+        value *= sign(self.arith_dec.decodeBinEP())
 
         # (3) return value
         return value
@@ -44,13 +47,13 @@ class EntropyDecoder:
         # (3) return value
 
         length = 0
-        while not self.bitstream.get_bit():
+        while not self.arith_dec.decodeBinEP():
             length += 1
 
         value = 1
         if length > 0:
             value = value << length
-            value += self.bitstream.get_bits(length)
+            value += self.arith_dec.decodeBinsEP(length)
 
         value -= 1
 
@@ -58,4 +61,4 @@ class EntropyDecoder:
 
     # placeholder: will make sense with arithmetic coding
     def terminate(self):
-        return True
+        return self.arith_dec.finish()
