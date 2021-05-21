@@ -1,11 +1,13 @@
 import numpy as np
-# import matplotlib.pyplot as plt
 
 from EntropyEncoder import EntropyEncoder
-from OBitstream import OBitstream
-from dct import Transformation
 from IntraPredictionCalculator import IntraPredictionCalculator
 from IntraPredictionCalculator import PredictionMode
+from OBitstream import OBitstream
+from dct import Transformation
+
+
+# import matplotlib.pyplot as plt
 
 
 # read PGM image
@@ -42,10 +44,11 @@ def sort_diagonal(mat: np.ndarray) -> np.ndarray:
 
         start_col = max(0, line - rows)
         count = min(line, (columns - start_col), rows)
- 
+
         for j in range(0, count):
             res.append(mat[min(rows, line) - j - 1][start_col + j])
     return np.array(res)
+
 
 class Encoder:
 
@@ -59,8 +62,8 @@ class Encoder:
         self.entropyEncoder = None
         self.reconstruction_path = reconstruction_path
         self._read_image()
-        self.pad_height  = self.block_size - self.image_height%self.block_size if self.image_height%self.block_size != 0 else 0
-        self.pad_width  = self.block_size - self.image_width%self.block_size if self.image_width%self.block_size != 0 else 0
+        self.pad_height = self.block_size - self.image_height % self.block_size if self.image_height % self.block_size != 0 else 0
+        self.pad_width = self.block_size - self.image_width % self.block_size if self.image_width % self.block_size != 0 else 0
 
     def init_obitstream(self, img_height, img_width, path):
         outputBitstream = OBitstream(path)
@@ -70,14 +73,14 @@ class Encoder:
         outputBitstream.addBits(self.qp, 8)
         return outputBitstream
 
-    #read image
+    # read image
     def _read_image(self):
         self.image = _read_image(self.input_path)
         self.image_height = self.image.shape[0]
         self.image_width = self.image.shape[1]
 
-    def _add_padding(self):       
-        self.image = np.pad(self.image,((0,self.pad_height),(0,self.pad_width)),"edge" )    
+    def _add_padding(self):
+        self.image = np.pad(self.image, ((0, self.pad_height), (0, self.pad_width)), "edge")
 
         # for testing (include matplotlib)    
         # plt.imshow(image)
@@ -85,9 +88,10 @@ class Encoder:
 
     # Gets an image and return an encoded bitstream. 
     def encode_image(self):
-        #add padding
+        # add padding
         self._add_padding()
-        self.image_reconstructed = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width], dtype=np.uint8)
+        self.image_reconstructed = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],
+                                            dtype=np.uint8)
         # open bitstream and write header
         outputBitstream = self.init_obitstream(self.image_height, self.image_width, self.output_path)
         # initialize intra prediction calculator
@@ -96,13 +100,13 @@ class Encoder:
         self.entropyEncoder = EntropyEncoder(outputBitstream)
         # process image
         for yi in range(0, self.image_height + self.pad_height, self.block_size):
-            for xi in range(0,self.image_width + self.pad_width, self.block_size):
+            for xi in range(0, self.image_width + self.pad_width, self.block_size):
                 self.encode_block(xi, yi)
         # terminate bitstream
         self.entropyEncoder.terminate()
         outputBitstream.terminate()
         if self.reconstruction_path:
-            self.image_reconstructed = self.image_reconstructed[:self.image_height,:self.image_width]
+            self.image_reconstructed = self.image_reconstructed[:self.image_height, :self.image_width]
             self.write_out()
 
     def reconstruct_block(self, pred_block, q_idx_block, x, y):
@@ -112,7 +116,8 @@ class Encoder:
         recBlock = Transformation().backward_dct(recBlock)
         # invoke prediction function (see 4.3 DC prediction)
         recBlock += pred_block
-        self.image_reconstructed[y:y + self.block_size, x:x + self.block_size] = np.clip(recBlock, 0, 255).astype('uint8')
+        self.image_reconstructed[y:y + self.block_size, x:x + self.block_size] = np.clip(recBlock, 0, 255).astype(
+            'uint8')
 
     # encode block of current picture
     def encode_block(self, x: int, y: int):
