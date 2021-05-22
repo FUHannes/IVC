@@ -1,14 +1,16 @@
 import numpy as np
+
+from IBitstream import IBitstream
 from arithBase import ProbModel
 from arithDecoder import ArithDecoder
 
-from IBitstream import IBitstream
 
 def sign(b):
     if b:
         return 1
     else:
         return -1
+
 
 # class for all the entropy decoding
 class EntropyDecoder:
@@ -36,10 +38,11 @@ class EntropyDecoder:
 
         return out_integer_array.reshape([blockSize, blockSize])
 
-    def readQIndex(self):
-        sig_flag = self.arith_dec.decodeBin(self.prob_sig_flag)
-        if sig_flag == 0:
-            return 0
+    def readQIndex(self, isLast=False):
+        if not isLast:
+            sig_flag = self.arith_dec.decodeBin(self.prob_sig_flag)
+            if sig_flag == 0:
+                return 0
 
         gt1_flag = self.arith_dec.decodeBinEP()
         if gt1_flag == 0:
@@ -47,7 +50,7 @@ class EntropyDecoder:
             return sign(sign_flag)
 
         # (1) read expGolomb for absolute value
-        value = self.expGolomb()+2
+        value = self.expGolomb() + 2
         value *= sign(self.arith_dec.decodeBinEP())
 
         # (3) return value

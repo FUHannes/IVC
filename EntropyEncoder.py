@@ -2,6 +2,7 @@ from OBitstream import OBitstream
 from arithBase import ProbModel
 from arithEncoder import ArithEncoder
 
+
 def bitsUsed(value: int) -> int:
     counter = 0
 
@@ -39,22 +40,26 @@ class EntropyEncoder:
         """ Writes a positive or negative value with exp golomb coding and sign bit
         """
         if level == 0:
+            if isLast:
+                raise ValueError('Should not occur')
             self.arith_enc.encodeBin(0, self.prob_sig_flag)
             return
         elif abs(level) == 1:
-            self.arith_enc.encodeBin(1, self.prob_sig_flag)
+            if not isLast:
+                self.arith_enc.encodeBin(1, self.prob_sig_flag)
             self.arith_enc.encodeBinEP(0)
             self.arith_enc.encodeBinEP(level > 0)
             return
 
         # sig flag: is level unequal to zero?
-        self.arith_enc.encodeBin(1, self.prob_sig_flag)
+        if not isLast:
+            self.arith_enc.encodeBin(1, self.prob_sig_flag)
 
         # gt1 flag: is absolute value greater than one?
         self.arith_enc.encodeBinEP(abs(level) > 1)
 
         # remainder
-        self.expGolomb(abs(level)-2)
+        self.expGolomb(abs(level) - 2)
 
         self.arith_enc.encodeBinEP(level > 0)
 
