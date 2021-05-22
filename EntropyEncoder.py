@@ -16,6 +16,8 @@ class EntropyEncoder:
     def __init__(self, bitstream: OBitstream):
         self.arith_enc = ArithEncoder(bitstream)
         self.prob_sig_flag = ProbModel()
+        self.prob_cbf = ProbModel()
+        self.prob_golomb_suffix = ProbModel()
 
     def expGolomb(self, value: int):
         assert (value >= 0)
@@ -23,6 +25,14 @@ class EntropyEncoder:
         classIndex = bitsUsed(value + 1) - 1  # class index
 
         self.arith_enc.encodeBinsEP(1, classIndex + 1)
+        self.arith_enc.encodeBinsEP(value + 1, classIndex)
+
+    def expGolombProbAdapted(self, value: int):
+        assert (value >= 0)
+
+        classIndex = bitsUsed(value + 1) - 1  # class index
+
+        self.arith_enc.encodeBins(1, classIndex + 1, self.prob_golomb_suffix)
         self.arith_enc.encodeBinsEP(value + 1, classIndex)
 
     def writeQIndex(self, level: int):
@@ -52,7 +62,17 @@ class EntropyEncoder:
         """ Writes all values sequential to the bitstream
         """
         qIdxList = qIdxBlock.ravel()
-        for k in range(qIdxList.shape[0]):
+
+        coded_block_flag = np.any(qIdxList != 0)
+        self.self.arith_enc.encodeBin(coded_block_flag, self.prob_cbf)
+        if not coded_block_flag:
+            return
+
+        last_scan_index = np.where(qIdxList != 0)[-1]
+        self.expGolombProbAdapted(last_scan_index)
+
+        self.writeQIndex(qIdxList[last_scan_index], isLast=True)
+        for k in range(last_scan_index-1, -1, -1):
             self.writeQIndex(qIdxList[k])
 
     # placeholder: will make sense for arithmetic coding
