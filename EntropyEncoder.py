@@ -1,3 +1,5 @@
+import numpy as np
+
 from OBitstream import OBitstream
 from arithBase import ProbModel
 from arithEncoder import ArithEncoder
@@ -17,9 +19,12 @@ class EntropyEncoder:
     def __init__(self, bitstream: OBitstream):
         self.arith_enc = ArithEncoder(bitstream)
         self.prob_sig_flag = ProbModel()
+        self.prob_gt1_flag = ProbModel()
+        self.prob_level_prefix = ProbModel()
         self.prob_cbf = ProbModel()
-        self.prob_golomb_suffix = ProbModel()
+        self.prob_last_prefix = ProbModel()
 
+    # NOTE: no longer required, replaced expGolombProbAdapted
     def expGolomb(self, value: int):
         assert (value >= 0)
 
@@ -28,15 +33,15 @@ class EntropyEncoder:
         self.arith_enc.encodeBinsEP(1, classIndex + 1)
         self.arith_enc.encodeBinsEP(value + 1, classIndex)
 
-    def expGolombProbAdapted(self, value: int):
+    def expGolombProbAdapted(self, value: int, prob):
         assert (value >= 0)
 
         classIndex = bitsUsed(value + 1) - 1  # class index
 
-        self.arith_enc.encodeBins(1, classIndex + 1, self.prob_golomb_suffix)
+        self.arith_enc.encodeBins(1, classIndex + 1, prob)
         self.arith_enc.encodeBinsEP(value + 1, classIndex)
 
-    def writeQIndex(self, level: int):
+    def writeQIndex(self, level: int, isLast=False):
         """ Writes a positive or negative value with exp golomb coding and sign bit
         """
         if level == 0:
@@ -47,7 +52,7 @@ class EntropyEncoder:
         elif abs(level) == 1:
             if not isLast:
                 self.arith_enc.encodeBin(1, self.prob_sig_flag)
-            self.arith_enc.encodeBinEP(0)
+            self.arith_enc.encodeBin(0, self.prob_gt1_flag)
             self.arith_enc.encodeBinEP(level > 0)
             return
 
@@ -56,10 +61,10 @@ class EntropyEncoder:
             self.arith_enc.encodeBin(1, self.prob_sig_flag)
 
         # gt1 flag: is absolute value greater than one?
-        self.arith_enc.encodeBinEP(abs(level) > 1)
+        self.arith_enc.encodeBin(abs(level) > 1, self.prob_gt1_flag)
 
         # remainder
-        self.expGolomb(abs(level) - 2)
+        self.expGolombProbAdapted(abs(level) - 2, self.prob_level_prefix)
 
         self.arith_enc.encodeBinEP(level > 0)
 
@@ -69,12 +74,13 @@ class EntropyEncoder:
         qIdxList = qIdxBlock.ravel()
 
         coded_block_flag = np.any(qIdxList != 0)
-        self.self.arith_enc.encodeBin(coded_block_flag, self.prob_cbf)
+        self.arith_enc.encodeBin(coded_block_flag, self.prob_cbf)
         if not coded_block_flag:
             return
 
-        last_scan_index = np.where(qIdxList != 0)[-1]
-        self.expGolombProbAdapted(last_scan_index)
+        last_scan_index = np.max(np.nonzero(qIdxList))
+        #last_scan_index = (np.where(qIdxList != 0))[-1]  # that doesn't work (returns a list)
+        self.expGolombProbAdapted(last_scan_index, self.prob_last_prefix)
 
         self.writeQIndex(qIdxList[last_scan_index], isLast=True)
         for k in range(last_scan_index-1, -1, -1):

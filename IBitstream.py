@@ -26,7 +26,6 @@ class IBitstream:
 
             :param      num_bits: Specifies the numbers of bits to read
             :return:    integer representation of bits read
-            :raises     IndexError: if bitarray is empty or index is out of range
         """
         if num_bits <= self.availBits:
             self.availBits -= num_bits

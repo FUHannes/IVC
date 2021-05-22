@@ -17,20 +17,22 @@ class EntropyDecoder:
     def __init__(self, bitstream: IBitstream):
         self.arith_dec = ArithDecoder(bitstream)
         self.prob_sig_flag = ProbModel()
+        self.prob_gt1_flag = ProbModel()
+        self.prob_level_prefix = ProbModel()
         self.prob_cbf = ProbModel()
-        self.prob_golomb_suffix = ProbModel()
+        self.prob_last_prefix = ProbModel()
 
     def readQIndexBlock(self, blockSize: int):
         # loop over all positions inside NxN block
         #  --> call readQIndex for all quantization index
 
-        out_integer_array = np.zero(blockSize*blockSize, dtype=np.uint8)
+        out_integer_array = np.zeros(blockSize*blockSize, dtype=np.int32)
 
-        coded_block_flag = self.self.arith_enc.decodeBin(self.prob_cbf)
+        coded_block_flag = self.arith_dec.decodeBin(self.prob_cbf)
         if not coded_block_flag:
             return out_integer_array.reshape([blockSize, blockSize])
 
-        last_scan_index = self.expGolombProbAdapted()
+        last_scan_index = self.expGolombProbAdapted(self.prob_last_prefix)
         out_integer_array[last_scan_index] = self.readQIndex(isLast=True)
 
         for k in range(last_scan_index-1, -1, -1):
@@ -44,18 +46,19 @@ class EntropyDecoder:
             if sig_flag == 0:
                 return 0
 
-        gt1_flag = self.arith_dec.decodeBinEP()
+        gt1_flag = self.arith_dec.decodeBin(self.prob_gt1_flag)
         if gt1_flag == 0:
             sign_flag = self.arith_dec.decodeBinEP()
             return sign(sign_flag)
 
         # (1) read expGolomb for absolute value
-        value = self.expGolomb() + 2
+        value = self.expGolombProbAdapted(self.prob_level_prefix) + 2
         value *= sign(self.arith_dec.decodeBinEP())
 
         # (3) return value
         return value
 
+    # NOTE: no longer required, replaced expGolombProbAdapted
     def expGolomb(self):
         # (1) read class index k using unary code (read all bits until next '1'; classIdx = num zeros)
         # (2) read position inside class as fixed-length code of k bits [red bits]
@@ -74,13 +77,13 @@ class EntropyDecoder:
 
         return value
 
-    def expGolombProbAdapted(self):
+    def expGolombProbAdapted(self, prob):
         # (1) read class index k using unary code (read all bits until next '1'; classIdx = num zeros)
         # (2) read position inside class as fixed-length code of k bits [red bits]
         # (3) return value
 
         length = 0
-        while not self.arith_dec.decodeBin(self.prob_cbf):
+        while not self.arith_dec.decodeBin(prob):
             length += 1
 
         value = 1
