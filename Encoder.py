@@ -129,7 +129,7 @@ class Encoder:
         # dct
         transCoeff = Transformation().forward_dct(predError)
         # quantization
-        qIdxBlock = np.round(transCoeff / self.qs, decimals=0).astype('int')
+        qIdxBlock = (np.sign(transCoeff) * np.floor((np.abs(transCoeff)/self.qs) + 0.4)).astype('int')
         # reconstruction
         self.reconstruct_block(predBlock, qIdxBlock, x, y)
         # diagonal scan
