@@ -26,7 +26,7 @@ def main():
     args = parse_args()
     if args.bs:
         versions = args.versions.split(',') if args.versions else []
-        for block_size in [1, 2, 4, 8, 16, 32]:
+        for block_size in [4, 8, 16, 32]:
             version = args.version + "_bs-" + str(block_size)
             if not args.print:
                 generate_data(args.filename, version, block_size)
