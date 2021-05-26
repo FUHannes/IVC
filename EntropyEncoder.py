@@ -68,7 +68,7 @@ class EntropyEncoder:
 
         self.arith_enc.encodeBinEP(level > 0)
 
-    def writeQIndexBlock(self, qIdxBlock):
+    def writeQIndexBlock(self, qIdxBlock, predMode):
         """ Writes all values sequential to the bitstream
         """
         qIdxList = qIdxBlock.ravel()
@@ -79,14 +79,43 @@ class EntropyEncoder:
             return
 
         last_scan_index = np.max(np.nonzero(qIdxList))
-        #last_scan_index = (np.where(qIdxList != 0))[-1]  # that doesn't work (returns a list)
+        # last_scan_index = (np.where(qIdxList != 0))[-1]  # that doesn't work (returns a list)
         self.expGolombProbAdapted(last_scan_index, self.prob_last_prefix)
 
         self.writeQIndex(qIdxList[last_scan_index], isLast=True)
-        for k in range(last_scan_index-1, -1, -1):
+        # self.getEstimateBits(qIdxList[last_scan_index], isLast=True)
+        for k in range(last_scan_index - 1, -1, -1):
             self.writeQIndex(qIdxList[k])
+            # self.getEstimateBits(qIdxList[k])
 
     # placeholder: will make sense for arithmetic coding
     def terminate(self):
         self.arith_enc.finalize()
         return True
+
+    def getEstimateBits(self, level, isLast=False):
+        if level == 0:
+            if isLast:
+                raise ValueError('Should not occur')
+            return self.arith_enc.getEstBits(0, self.prob_sig_flag)
+        elif abs(level) == 1:
+            if not isLast:
+                return self.arith_enc.getEstBits(1, self.prob_sig_flag)
+            return self.arith_enc.getEstBits(0, self.prob_gt1_flag)
+            # sig flag: is level unequal to zero?
+        if not isLast:
+            return self.arith_enc.getEstBits(1, self.prob_sig_flag)
+
+        # gt1 flag: is absolute value greater than one?
+        return self.arith_enc.getEstBits(abs(level) > 1, self.prob_gt1_flag)
+
+    def estBits(self, predMode, qIdxBlock):
+        # What to do with predMode?
+        if predMode == 0:
+            probModel = self.prob_cbf
+        if predMode == 1:
+            pass
+
+        for bin in qIdxBlock.ravel():
+            self.getEstimateBits(bin)
+            self.arith_enc.getEstBits(bin, self.arith_cbf)

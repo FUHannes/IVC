@@ -64,6 +64,7 @@ class Encoder:
         self._read_image()
         self.pad_height = self.block_size - self.image_height % self.block_size if self.image_height % self.block_size != 0 else 0
         self.pad_width = self.block_size - self.image_width % self.block_size if self.image_width % self.block_size != 0 else 0
+        self.est_bits = 0
 
     def init_obitstream(self, img_height, img_width, path):
         outputBitstream = OBitstream(path)
@@ -124,7 +125,8 @@ class Encoder:
         # accessor for current block
         orgBlock = self.image[y:y + self.block_size, x:x + self.block_size]
         # prediction
-        predBlock = self.intra_pred_calc.get_prediction(x, y, PredictionMode.DC_PREDICTION)
+        predMode = PredictionMode.DC_PREDICTION
+        predBlock = self.intra_pred_calc.get_prediction(x, y, predMode)
         predError = orgBlock.astype('int') - predBlock
         # dct
         transCoeff = Transformation().forward_dct(predError)
@@ -136,6 +138,7 @@ class Encoder:
         diagonal = sort_diagonal(qIdxBlock)
         # entropy coding
         self.entropyEncoder.writeQIndexBlock(diagonal)
+        self.est_bits += self.entropyEncoder.estBits(predMode, qIdxBlock)
 
     # opening and writing a binary file
     def write_out(self):
