@@ -106,6 +106,8 @@ class Encoder:
         # terminate bitstream
         self.entropyEncoder.terminate()
         outputBitstream.terminate()
+        print(f'Estimated # of bits {self.est_bits}')
+        print(f'# of bits in bitstream without header {outputBitstream.bits_written - 56}')
         if self.reconstruction_path:
             self.image_reconstructed = self.image_reconstructed[:self.image_height, :self.image_width]
             self.write_out()
@@ -138,7 +140,8 @@ class Encoder:
         diagonal = sort_diagonal(qIdxBlock)
         # entropy coding
         self.entropyEncoder.writeQIndexBlock(diagonal)
-        self.est_bits += self.entropyEncoder.estBits(predMode, qIdxBlock)
+        # Sum estimated bits per block
+        self.est_bits += self.entropyEncoder.estBits(predMode, diagonal)
 
     # opening and writing a binary file
     def write_out(self):
