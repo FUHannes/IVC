@@ -75,6 +75,8 @@ class EntropyEncoder:
 
         self.arith_enc.encodeBinEP(level > 0)
 
+
+    # similar to writeQindex but estimation only
     def getEstimateBits(self, level, isLast=False):
         if level == 0:
             if isLast:
@@ -123,7 +125,9 @@ class EntropyEncoder:
         self.arith_enc.finalize()
         return True
 
+    # similar to writeQindexBlock but estimation only
     def estBits(self, predMode, qIdxBlock):
+        self.est_bits=0
         qIdxList = qIdxBlock.ravel()
 
         coded_block_flag = np.any(qIdxList != 0)
