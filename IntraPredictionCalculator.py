@@ -36,9 +36,14 @@ class IntraPredictionCalculator:
             raise Exception('Unsupported prediction mode')
 
     def get_dc_prediction(self, x: int, y: int) -> np.ndarray:
-        border = np.concatenate([self.left_border(x, y), self.top_border(x, y)])
-        prediction = round(border.mean()) if x > 0 and y > 0 else 128
-        return np.full([self.blocksize, self.blocksize], prediction)
+        dc = 128
+        if x > 0 and y > 0:
+            dc = round(0.5 * (self.left_border(x, y).mean() + self.top_border(x, y).mean()))
+        elif x > 0:
+            dc = round(self.left_border(x, y).mean())
+        elif y > 0:
+            dc = round(self.top_border(x, y).mean())
+        return np.full([self.blocksize, self.blocksize], dc)
 
     def get_vertical_prediction(self, x: int, y: int) -> np.ndarray:
         return np.full([self.blocksize, self.blocksize], self.top_border(x, y))
