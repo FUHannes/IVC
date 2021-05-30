@@ -18,10 +18,10 @@ class IntraPredictionCalculator:
         self.blocksize = blocksize
 
     def left_border(self, x: int, y: int):
-        return self.image[y:y+self.blocksize, x-1:x].ravel() if x > 0 else [128] * self.blocksize
+        return self.image[y:y+self.blocksize, x-1:x].ravel() if x > 0 else np.full([self.blocksize], 128)
 
     def top_border(self, x: int, y: int):
-        return self.image[y-1:y, x:x+self.blocksize].ravel() if y > 0 else [128] * self.blocksize
+        return self.image[y-1:y, x:x+self.blocksize].ravel() if y > 0 else np.full([self.blocksize], 128)
 
     def get_prediction(self, x: int, y: int, prediction_mode: PredictionMode) -> np.ndarray:
         if prediction_mode == PredictionMode.DC_PREDICTION:
