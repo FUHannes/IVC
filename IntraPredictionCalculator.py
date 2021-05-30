@@ -52,8 +52,11 @@ class IntraPredictionCalculator:
         return np.full([self.blocksize, self.blocksize], self.left_border(x, y)).T
 
     def get_planar_prediction(self, x: int, y: int) -> np.ndarray:
-        x_border_idx = (x // self.blocksize) - 1
-        y_border_idx = (y // self.blocksize) - 1
+        if x==0 or y==0:
+            return np.full([self.blocksize, self.blocksize], 128)   # fall back for non-available border
+
+        x_border_idx = x - 1  #(x // self.blocksize) - 1
+        y_border_idx = y - 1  #(y // self.blocksize) - 1
 
         predicted_block = np.zeros([self.blocksize, self.blocksize])
 
