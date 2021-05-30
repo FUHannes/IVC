@@ -52,9 +52,6 @@ class IntraPredictionCalculator:
         return np.full([self.blocksize, self.blocksize], self.left_border(x, y)).T
 
     def get_planar_prediction(self, x: int, y: int) -> np.ndarray:
-        if x==0 or y==0:
-            return np.full([self.blocksize, self.blocksize], 128)   # fall back for non-available border
-
         # speed-up (tried to use numpy as much as possible for making things faster)
         top_samples = self.top_border(x, y).astype('int')
         left_samples = self.left_border(x, y).astype('int')
