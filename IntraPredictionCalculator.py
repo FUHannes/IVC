@@ -55,19 +55,41 @@ class IntraPredictionCalculator:
         if x==0 or y==0:
             return np.full([self.blocksize, self.blocksize], 128)   # fall back for non-available border
 
-        x_border_idx = x - 1  #(x // self.blocksize) - 1
-        y_border_idx = y - 1  #(y // self.blocksize) - 1
+        # speed-up (tried to use numpy as much as possible for making things faster)
+        top_samples = self.top_border(x, y).astype('int')
+        left_samples = self.left_border(x, y).astype('int')
+        virtual_bottom_samples = np.full([self.blocksize], left_samples[self.blocksize - 1])
+        virtual_right_samples = np.full([self.blocksize], top_samples[self.blocksize - 1])
 
-        predicted_block = np.zeros([self.blocksize, self.blocksize])
+        pred_block = np.full([self.blocksize, self.blocksize], self.blocksize, dtype='int32')  # initialize with rounding offset
 
-        for local_x in range(0, self.blocksize):
-            global_x = local_x + x
+        # horizontal part
+        for local_x in range (0, self.blocksize):
+            pred_block[:, local_x] += (self.blocksize - 1 - local_x) * left_samples + (1 + local_x) * virtual_right_samples
+
+        # vertical part
+        for local_y in range (0, self.blocksize):
+            pred_block[local_y, :] += (self.blocksize - 1 - local_y) * top_samples + (1 + local_y) * virtual_bottom_samples
+
+        # final division (with rounding)
+        pred_block //= (2 * self.blocksize)
+        return pred_block
 
 
-            for local_y in range(0, self.blocksize):
-                global_y = local_y + y
-                h = (self.blocksize - 1 - local_x) * self.image[global_y, x_border_idx] + (1 + local_x) * self.image[y_border_idx, x_border_idx + self.blocksize]
-                v = (self.blocksize - 1 - local_y) * self.image[y_border_idx, global_x] + (1 + local_y) * self.image[y_border_idx + self.blocksize, x_border_idx]
-                predicted_block[local_y, local_x] = (h + v) / (2 * self.blocksize)
-         
-        return predicted_block.astype('int')
+        ## # original version (working, but rather slow)
+        ## x_border_idx = x - 1  #(x // self.blocksize) - 1
+        ## y_border_idx = y - 1  #(y // self.blocksize) - 1
+        ## 
+        ## predicted_block = np.zeros([self.blocksize, self.blocksize])
+        ## 
+        ## for local_x in range(0, self.blocksize):
+        ##     global_x = local_x + x
+        ## 
+        ##     for local_y in range(0, self.blocksize):
+        ##         global_y = local_y + y
+        ##         h = (self.blocksize - 1 - local_x) * self.image[global_y, x_border_idx] + (1 + local_x) * self.image[y_border_idx, x_border_idx + self.blocksize]
+        ##         v = (self.blocksize - 1 - local_y) * self.image[y_border_idx, global_x] + (1 + local_y) * self.image[y_border_idx + self.blocksize, x_border_idx]
+        ##         predicted_block[local_y, local_x] = (h + v) / (2 * self.blocksize)
+        ##  
+        ## return predicted_block.astype('int')
+
