@@ -10,7 +10,7 @@ class PredictionMode(IntEnum):
 
 def random_prediction_mode():
     # TODO: set to [0,3] when PLANAR_PREDICTION is implemented
-    return random.randint(0,2)
+    return random.randint(0,3)
 
 class IntraPredictionCalculator:
     def __init__(self, image: np.ndarray, blocksize: int):
@@ -30,6 +30,8 @@ class IntraPredictionCalculator:
             return self.get_vertical_prediction(x, y)
         elif prediction_mode == PredictionMode.HORIZONTAL_PREDICTION:
             return self.get_horizontal_prediction(x, y)
+        elif prediction_mode == PredictionMode.PLANAR_PREDICTION:
+            return self.get_planar_prediction(x, y)
         else:
             raise Exception('Unsupported prediction mode')
 
@@ -43,3 +45,21 @@ class IntraPredictionCalculator:
 
     def get_horizontal_prediction(self, x: int, y: int) -> np.ndarray:
         return np.full([self.blocksize, self.blocksize], self.left_border(x, y)).T
+
+    def get_planar_prediction(self, x: int, y: int) -> np.ndarray:
+        x_border_idx = (x // self.blocksize) - 1
+        y_border_idx = (y // self.blocksize) - 1
+
+        predicted_block = np.zeros([self.blocksize, self.blocksize])
+
+        for local_x in range(0, self.blocksize):
+            global_x = local_x + x
+
+
+            for local_y in range(0, self.blocksize):
+                global_y = local_y + y
+                h = (self.blocksize - 1 - local_x) * self.image[global_y, x_border_idx] + (1 + local_x) * self.image[y_border_idx, x_border_idx + self.blocksize]
+                v = (self.blocksize - 1 - local_y) * self.image[y_border_idx, global_x] + (1 + local_y) * self.image[y_border_idx + self.blocksize, x_border_idx]
+                predicted_block[local_y, local_x] = (h + v) / (2 * self.blocksize)
+         
+        return predicted_block.astype('int')
