@@ -9,8 +9,8 @@ from Encoder import Encoder
 def main():
     parser = argparse.ArgumentParser(description='PGM encoder')
     parser.add_argument('-bs', '--blocksize',
-                        help='block size in samples (default: 8)',
-                        default=8,
+                        help='block size in samples (default: 16)',
+                        default=16,
                         dest='blocksize',
                         type=int)
     parser.add_argument('-qp', '--quantization-parameter',

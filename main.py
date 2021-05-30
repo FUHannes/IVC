@@ -16,7 +16,7 @@ def parse_args():
                         help='optional: comma separated versions that should be also compared to the new encoder and decoder version, e.g. \'1.0,2.0\'',
                         required=False)
     parser.add_argument('-bs', '--block-sizes', dest='bs', action='store_true',
-                        help='optional: if set, curves for blocksizes [1,2,4,8,16,32] are computed')
+                        help='optional: if set, curves for blocksizes [4,8,16,32] are computed')
     parser.add_argument('-print', dest='print', action='store_true',
                         help='optional: if set, no new data is computed but version curves are plotted')
 
@@ -38,7 +38,7 @@ def main():
         plot_data(args.filename, version, versions)
     else:
         if not args.print:
-            generate_data(args.filename, args.version, 8)
+            generate_data(args.filename, args.version, 16)
         plot_data(args.filename, args.version, args.versions)
 
 
