@@ -3,6 +3,7 @@ import numpy as np
 from IBitstream import IBitstream
 from arithBase import ProbModel
 from arithDecoder import ArithDecoder
+from IntraPredictionCalculator import PredictionMode
 
 
 def sign(b):
@@ -21,6 +22,9 @@ class EntropyDecoder:
         self.prob_level_prefix = ProbModel()
         self.prob_cbf = ProbModel()
         self.prob_last_prefix = ProbModel()
+        self.prediction_mode_bin1 = ProbModel()
+        self.prediction_mode_bin2 = ProbModel()
+        self.prediction_mode_bin3 = ProbModel()
 
     def readQIndexBlock(self, blockSize: int):
         # loop over all positions inside NxN block
@@ -28,9 +32,18 @@ class EntropyDecoder:
 
         out_integer_array = np.zeros(blockSize*blockSize, dtype=np.int32)
 
+        if self.arith_dec.decodeBin(self.prediction_mode_bin1) == 0:
+            prediction_mode = PredictionMode.PLANAR_PREDICTION
+        elif self.arith_dec.decodeBin(self.prediction_mode_bin2) == 0:
+            prediction_mode = PredictionMode.DC_PREDICTION
+        elif self.arith_dec.decodeBin(self.prediction_mode_bin3) == 0:
+            prediction_mode = PredictionMode.HORIZONTAL_PREDICTION
+        else:
+            prediction_mode = PredictionMode.VERTICAL_PREDICTION
+
         coded_block_flag = self.arith_dec.decodeBin(self.prob_cbf)
         if not coded_block_flag:
-            return out_integer_array.reshape([blockSize, blockSize])
+            return out_integer_array.reshape([blockSize, blockSize]), prediction_mode
 
         last_scan_index = self.expGolombProbAdapted(self.prob_last_prefix)
         out_integer_array[last_scan_index] = self.readQIndex(isLast=True)
@@ -38,7 +51,7 @@ class EntropyDecoder:
         for k in range(last_scan_index-1, -1, -1):
             out_integer_array[k] = self.readQIndex()
 
-        return out_integer_array.reshape([blockSize, blockSize])
+        return out_integer_array.reshape([blockSize, blockSize]), prediction_mode
 
     def readQIndex(self, isLast=False):
         if not isLast:

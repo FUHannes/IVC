@@ -3,6 +3,7 @@ import numpy as np
 from OBitstream import OBitstream
 from arithBase import ProbModel
 from arithEncoder import ArithEncoder
+from IntraPredictionCalculator import PredictionMode
 
 
 def bitsUsed(value: int) -> int:
@@ -23,6 +24,9 @@ class EntropyEncoder:
         self.prob_level_prefix = ProbModel()
         self.prob_cbf = ProbModel()
         self.prob_last_prefix = ProbModel()
+        self.prediction_mode_bin1 = ProbModel()
+        self.prediction_mode_bin2 = ProbModel()
+        self.prediction_mode_bin3 = ProbModel()
 
     # NOTE: no longer required, replaced expGolombProbAdapted
     def expGolomb(self, value: int):
@@ -68,10 +72,24 @@ class EntropyEncoder:
 
         self.arith_enc.encodeBinEP(level > 0)
 
-    def writeQIndexBlock(self, qIdxBlock):
+    def writeQIndexBlock(self, qIdxBlock, prediction_mode):
         """ Writes all values sequential to the bitstream
         """
         qIdxList = qIdxBlock.ravel()
+
+        if prediction_mode == PredictionMode.PLANAR_PREDICTION:
+            self.arith_enc.encodeBin(0, self.prediction_mode_bin1)
+        elif prediction_mode == PredictionMode.DC_PREDICTION:
+            self.arith_enc.encodeBin(1, self.prediction_mode_bin1)
+            self.arith_enc.encodeBin(0, self.prediction_mode_bin2)
+        elif prediction_mode == PredictionMode.HORIZONTAL_PREDICTION:
+            self.arith_enc.encodeBin(1, self.prediction_mode_bin1)
+            self.arith_enc.encodeBin(1, self.prediction_mode_bin2)
+            self.arith_enc.encodeBin(0, self.prediction_mode_bin3)
+        elif prediction_mode == PredictionMode.VERTICAL_PREDICTION:
+            self.arith_enc.encodeBin(1, self.prediction_mode_bin1)
+            self.arith_enc.encodeBin(1, self.prediction_mode_bin2)
+            self.arith_enc.encodeBin(1, self.prediction_mode_bin3)
 
         coded_block_flag = np.any(qIdxList != 0)
         self.arith_enc.encodeBin(coded_block_flag, self.prob_cbf)
