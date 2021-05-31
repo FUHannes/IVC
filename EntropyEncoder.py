@@ -1,9 +1,9 @@
 import numpy as np
 
+from IntraPredictionCalculator import PredictionMode
 from OBitstream import OBitstream
 from arithBase import ProbModel
 from arithEncoder import ArithEncoder
-from IntraPredictionCalculator import PredictionMode
 
 
 def bitsUsed(value: int) -> int:
@@ -47,7 +47,8 @@ class EntropyEncoder:
             self.arith_enc.encodeBins(1, classIndex + 1, prob)
             self.arith_enc.encodeBinsEP(value + 1, classIndex)
         else:
-            self.est_bits += classIndex * self.arith_enc.getEstBits(0, prob) + self.arith_enc.getEstBits(1, prob) + classIndex
+            self.est_bits += classIndex * self.arith_enc.getEstBits(0, prob) + self.arith_enc.getEstBits(1,
+                                                                                                         prob) + classIndex
 
     def writeQIndex(self, level: int, isLast=False):
         """ Writes a positive or negative value with exp golomb coding and sign bit
@@ -143,6 +144,20 @@ class EntropyEncoder:
     def estBits(self, predMode, qIdxBlock):
         self.est_bits = 0
         qIdxList = qIdxBlock.ravel()
+
+        if predMode == PredictionMode.PLANAR_PREDICTION:
+            self.est_bits += self.arith_enc.getEstBits(0, self.prediction_mode_bin1)
+        elif predMode == PredictionMode.DC_PREDICTION:
+            self.est_bits += self.arith_enc.getEstBits(1, self.prediction_mode_bin1)
+            self.est_bits += self.arith_enc.getEstBits(0, self.prediction_mode_bin2)
+        elif predMode == PredictionMode.HORIZONTAL_PREDICTION:
+            self.est_bits += self.arith_enc.getEstBits(1, self.prediction_mode_bin1)
+            self.est_bits += self.arith_enc.getEstBits(1, self.prediction_mode_bin2)
+            self.est_bits += self.arith_enc.getEstBits(0, self.prediction_mode_bin3)
+        elif predMode == PredictionMode.VERTICAL_PREDICTION:
+            self.est_bits += self.arith_enc.getEstBits(1, self.prediction_mode_bin1)
+            self.est_bits += self.arith_enc.getEstBits(1, self.prediction_mode_bin2)
+            self.est_bits += self.arith_enc.getEstBits(1, self.prediction_mode_bin3)
 
         coded_block_flag = np.any(qIdxList != 0)
         self.est_bits += self.arith_enc.getEstBits(coded_block_flag, self.prob_cbf)
