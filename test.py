@@ -23,7 +23,7 @@ BITSTREAM_SUFFIX = '.txt'
 DATA_SUFFIX = '.dat'
 
 
-def generate_data(filename, version, block_size=8):
+def generate_data(filename, version, block_size=16):
     input_path = os.path.join(PGM_ORIGINAL_PATH, filename + PGM_SUFFIX)
 
     if not os.path.exists(BITSTREAM_PATH):

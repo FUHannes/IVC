@@ -3,6 +3,7 @@ import numpy as np
 from EntropyEncoder import EntropyEncoder
 from IntraPredictionCalculator import IntraPredictionCalculator
 from IntraPredictionCalculator import PredictionMode
+from IntraPredictionCalculator import random_prediction_mode
 from OBitstream import OBitstream
 from dct import Transformation
 
@@ -127,8 +128,8 @@ class Encoder:
         # accessor for current block
         orgBlock = self.image[y:y + self.block_size, x:x + self.block_size]
         # prediction
-        predMode = PredictionMode.DC_PREDICTION
-        predBlock = self.intra_pred_calc.get_prediction(x, y, predMode)
+        prediction_mode = random_prediction_mode()
+        predBlock = self.intra_pred_calc.get_prediction(x, y, prediction_mode)
         predError = orgBlock.astype('int') - predBlock
         # dct
         transCoeff = Transformation().forward_dct(predError)
@@ -138,10 +139,10 @@ class Encoder:
         self.reconstruct_block(predBlock, qIdxBlock, x, y)
         # diagonal scan
         diagonal = sort_diagonal(qIdxBlock)
-        # entropy coding
-        self.entropyEncoder.writeQIndexBlock(diagonal)
         # Sum estimated bits per block
-        self.est_bits += self.entropyEncoder.estBits(predMode, diagonal)
+        self.est_bits += self.entropyEncoder.estBits(prediction_mode, diagonal)
+        # actual entropy encoding
+        self.entropyEncoder.writeQIndexBlock(diagonal, prediction_mode)
 
     # opening and writing a binary file
     def write_out(self):

@@ -47,7 +47,7 @@ class Decoder:
 
     def decode_block(self, x: int, y: int):
         # entropy decoding (EntropyDecoder)
-        ent_dec_block = self.ent_dec.readQIndexBlock(self.block_size)
+        ent_dec_block, prediction_mode = self.ent_dec.readQIndexBlock(self.block_size)
         # de-diagonal scan
         ordered_block = de_diagonalize(ent_dec_block)
         # de-quantization
@@ -55,7 +55,7 @@ class Decoder:
         # idct
         recBlock = Transformation().backward_dct(recBlock)
         # adding prediction
-        recBlock += self.intra_pred_calc.get_prediction(x, y, PredictionMode.DC_PREDICTION)
+        recBlock += self.intra_pred_calc.get_prediction(x, y, prediction_mode)
         # clipping (0,255) and store to image
         self.image[y:y + self.block_size, x:x + self.block_size] = np.clip(recBlock, 0, 255).astype('uint8')
 
