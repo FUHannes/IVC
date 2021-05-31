@@ -44,14 +44,6 @@ class ArithEncoder:
             numBins -= 1
             self.encodeBin((pattern >> numBins) & 1, probModel)
 
-    # estimate bits for coding (without updating probability model)
-    def getEstBits(self, bin: int, probModel) -> float:
-        return probModel.estBits(bin)
-
-    # estimate bits for coding (with updating probability model)
-    def getEstBitsUpdate(self, bin: int, probModel) -> float:
-        return probModel.estBitsUpd(bin)
-
     # bypass coding of a single bin
     def encodeBinEP(self, bin: int):
         self.low <<= 1
