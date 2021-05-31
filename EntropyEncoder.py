@@ -43,9 +43,7 @@ class EntropyEncoder:
             self.arith_enc.encodeBins(1, classIndex + 1, prob)
             self.arith_enc.encodeBinsEP(value + 1, classIndex)
         else:
-            while classIndex >= 0:
-                classIndex -= 1
-                self.est_bits += classIndex * self.arith_enc.getEstBits(0, prob) + self.arith_enc.getEstBits(1, prob) + classIndex
+            self.est_bits += classIndex * self.arith_enc.getEstBits(0, prob) + self.arith_enc.getEstBits(1, prob) + classIndex
 
     def writeQIndex(self, level: int, isLast=False):
         """ Writes a positive or negative value with exp golomb coding and sign bit
