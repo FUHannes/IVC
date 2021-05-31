@@ -65,6 +65,7 @@ class Encoder:
         self._read_image()
         self.pad_height = self.block_size - self.image_height % self.block_size if self.image_height % self.block_size != 0 else 0
         self.pad_width = self.block_size - self.image_width % self.block_size if self.image_width % self.block_size != 0 else 0
+        self.est_bits = 0
 
     def init_obitstream(self, img_height, img_width, path):
         outputBitstream = OBitstream(path)
@@ -106,6 +107,8 @@ class Encoder:
         # terminate bitstream
         self.entropyEncoder.terminate()
         outputBitstream.terminate()
+        print(f'Estimated # of bits {self.est_bits}')
+        print(f'# of bits in bitstream without header {outputBitstream.bits_written - 56}')
         if self.reconstruction_path:
             self.image_reconstructed = self.image_reconstructed[:self.image_height, :self.image_width]
             self.write_out()
@@ -136,7 +139,9 @@ class Encoder:
         self.reconstruct_block(predBlock, qIdxBlock, x, y)
         # diagonal scan
         diagonal = sort_diagonal(qIdxBlock)
-        # entropy coding
+        # Sum estimated bits per block
+        self.est_bits += self.entropyEncoder.estBits(prediction_mode, diagonal)
+        # actual entropy encoding
         self.entropyEncoder.writeQIndexBlock(diagonal, prediction_mode)
 
     # opening and writing a binary file
