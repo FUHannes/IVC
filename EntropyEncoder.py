@@ -43,10 +43,9 @@ class EntropyEncoder:
             self.arith_enc.encodeBins(1, classIndex + 1, prob)
             self.arith_enc.encodeBinsEP(value + 1, classIndex)
         else:
-            while classIndex > 0:
+            while classIndex >= 0:
                 classIndex -= 1
-                self.est_bits += self.arith_enc.getEstBits((1 >> classIndex + 1) & 1, prob)
-            self.est_bits += 1
+                self.est_bits += classIndex * self.arith_enc.getEstBits(0, prob) + self.arith_enc.getEstBits(1, prob) + classIndex
 
     def writeQIndex(self, level: int, isLast=False):
         """ Writes a positive or negative value with exp golomb coding and sign bit
@@ -74,7 +73,6 @@ class EntropyEncoder:
         self.expGolombProbAdapted(abs(level) - 2, self.prob_level_prefix)
 
         self.arith_enc.encodeBinEP(level > 0)
-
 
     # similar to writeQindex but estimation only
     def getEstimateBits(self, level, isLast=False):
@@ -127,13 +125,13 @@ class EntropyEncoder:
 
     # similar to writeQindexBlock but estimation only
     def estBits(self, predMode, qIdxBlock):
-        self.est_bits=0
+        self.est_bits = 0
         qIdxList = qIdxBlock.ravel()
 
         coded_block_flag = np.any(qIdxList != 0)
         self.est_bits += self.arith_enc.getEstBits(coded_block_flag, self.prob_cbf)
         if not coded_block_flag:
-            return 0
+            return self.est_bits
 
         last_scan_index = np.max(np.nonzero(qIdxList))
         self.expGolombProbAdapted(last_scan_index, self.prob_last_prefix, estimation=True)
