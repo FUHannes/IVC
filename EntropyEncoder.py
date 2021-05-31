@@ -16,9 +16,8 @@ def bitsUsed(value: int) -> int:
     return counter
 
 
-class EntropyEncoder:
-    def __init__(self, bitstream: OBitstream):
-        self.arith_enc = ArithEncoder(bitstream)
+class Probabilities:
+    def __init__(self):
         self.prob_sig_flag = ProbModel()
         self.prob_gt1_flag = ProbModel()
         self.prob_level_prefix = ProbModel()
@@ -27,6 +26,11 @@ class EntropyEncoder:
         self.prediction_mode_bin1 = ProbModel()
         self.prediction_mode_bin2 = ProbModel()
         self.prediction_mode_bin3 = ProbModel()
+
+class EntropyEncoder:
+    def __init__(self, bitstream: OBitstream):
+        self.arith_enc = ArithEncoder(bitstream)
+        self.probs = Probabilities()
         self.est_bits = 0
 
     # NOTE: no longer required, replaced expGolombProbAdapted
@@ -55,24 +59,24 @@ class EntropyEncoder:
         if level == 0:
             if isLast:
                 raise ValueError('Should not occur')
-            self.arith_enc.encodeBin(0, self.prob_sig_flag)
+            self.arith_enc.encodeBin(0, self.probs.prob_sig_flag)
             return
         elif abs(level) == 1:
             if not isLast:
-                self.arith_enc.encodeBin(1, self.prob_sig_flag)
-            self.arith_enc.encodeBin(0, self.prob_gt1_flag)
+                self.arith_enc.encodeBin(1, self.probs.prob_sig_flag)
+            self.arith_enc.encodeBin(0, self.probs.prob_gt1_flag)
             self.arith_enc.encodeBinEP(level > 0)
             return
 
         # sig flag: is level unequal to zero?
         if not isLast:
-            self.arith_enc.encodeBin(1, self.prob_sig_flag)
+            self.arith_enc.encodeBin(1, self.probs.prob_sig_flag)
 
         # gt1 flag: is absolute value greater than one?
-        self.arith_enc.encodeBin(1, self.prob_gt1_flag)
+        self.arith_enc.encodeBin(1, self.probs.prob_gt1_flag)
 
         # remainder
-        self.expGolombProbAdapted(abs(level) - 2, self.prob_level_prefix)
+        self.expGolombProbAdapted(abs(level) - 2, self.probs.prob_level_prefix)
 
         self.arith_enc.encodeBinEP(level > 0)
 
@@ -81,23 +85,23 @@ class EntropyEncoder:
         if level == 0:
             if isLast:
                 raise ValueError('Should not occur')
-            self.est_bits += self.prob_sig_flag.estBits(0)
+            self.est_bits += self.probs.prob_sig_flag.estBits(0)
             return
         elif abs(level) == 1:
             if not isLast:
-                self.est_bits += self.prob_sig_flag.estBits(1)
-            self.est_bits += self.prob_gt1_flag.estBits(0)
+                self.est_bits += self.probs.prob_sig_flag.estBits(1)
+            self.est_bits += self.probs.prob_gt1_flag.estBits(0)
             self.est_bits += 1
             return
             # sig flag: is level unequal to zero?
         if not isLast:
-            self.est_bits += self.prob_sig_flag.estBits(1)
+            self.est_bits += self.probs.prob_sig_flag.estBits(1)
 
         # gt1 flag: is absolute value greater than one?
-        self.est_bits += self.prob_gt1_flag.estBits(1)
+        self.est_bits += self.probs.prob_gt1_flag.estBits(1)
 
         # remainder
-        self.expGolombProbAdapted(abs(level) - 2, self.prob_level_prefix, estimation=True)
+        self.expGolombProbAdapted(abs(level) - 2, self.probs.prob_level_prefix, estimation=True)
 
         self.est_bits += 1
 
@@ -107,27 +111,27 @@ class EntropyEncoder:
         qIdxList = qIdxBlock.ravel()
 
         if prediction_mode == PredictionMode.PLANAR_PREDICTION:
-            self.arith_enc.encodeBin(0, self.prediction_mode_bin1)
+            self.arith_enc.encodeBin(0, self.probs.prediction_mode_bin1)
         elif prediction_mode == PredictionMode.DC_PREDICTION:
-            self.arith_enc.encodeBin(1, self.prediction_mode_bin1)
-            self.arith_enc.encodeBin(0, self.prediction_mode_bin2)
+            self.arith_enc.encodeBin(1, self.probs.prediction_mode_bin1)
+            self.arith_enc.encodeBin(0, self.probs.prediction_mode_bin2)
         elif prediction_mode == PredictionMode.HORIZONTAL_PREDICTION:
-            self.arith_enc.encodeBin(1, self.prediction_mode_bin1)
-            self.arith_enc.encodeBin(1, self.prediction_mode_bin2)
-            self.arith_enc.encodeBin(0, self.prediction_mode_bin3)
+            self.arith_enc.encodeBin(1, self.probs.prediction_mode_bin1)
+            self.arith_enc.encodeBin(1, self.probs.prediction_mode_bin2)
+            self.arith_enc.encodeBin(0, self.probs.prediction_mode_bin3)
         elif prediction_mode == PredictionMode.VERTICAL_PREDICTION:
-            self.arith_enc.encodeBin(1, self.prediction_mode_bin1)
-            self.arith_enc.encodeBin(1, self.prediction_mode_bin2)
-            self.arith_enc.encodeBin(1, self.prediction_mode_bin3)
+            self.arith_enc.encodeBin(1, self.probs.prediction_mode_bin1)
+            self.arith_enc.encodeBin(1, self.probs.prediction_mode_bin2)
+            self.arith_enc.encodeBin(1, self.probs.prediction_mode_bin3)
 
         coded_block_flag = np.any(qIdxList != 0)
-        self.arith_enc.encodeBin(coded_block_flag, self.prob_cbf)
+        self.arith_enc.encodeBin(coded_block_flag, self.probs.prob_cbf)
         if not coded_block_flag:
             return
 
         last_scan_index = np.max(np.nonzero(qIdxList))
         # last_scan_index = (np.where(qIdxList != 0))[-1]  # that doesn't work (returns a list)
-        self.expGolombProbAdapted(last_scan_index, self.prob_last_prefix)
+        self.expGolombProbAdapted(last_scan_index, self.probs.prob_last_prefix)
 
         self.writeQIndex(qIdxList[last_scan_index], isLast=True)
         # self.getEstimateBits(qIdxList[last_scan_index], isLast=True)
@@ -145,26 +149,26 @@ class EntropyEncoder:
         qIdxList = qIdxBlock.ravel()
 
         if predMode == PredictionMode.PLANAR_PREDICTION:
-            self.est_bits += self.prediction_mode_bin1.estBits(0)
+            self.est_bits += self.probs.prediction_mode_bin1.estBits(0)
         elif predMode == PredictionMode.DC_PREDICTION:
-            self.est_bits += self.prediction_mode_bin1.estBits(1)
-            self.est_bits += self.prediction_mode_bin2.estBits(0)
+            self.est_bits += self.probs.prediction_mode_bin1.estBits(1)
+            self.est_bits += self.probs.prediction_mode_bin2.estBits(0)
         elif predMode == PredictionMode.HORIZONTAL_PREDICTION:
-            self.est_bits += self.prediction_mode_bin1.estBits(1)
-            self.est_bits += self.prediction_mode_bin2.estBits(1)
-            self.est_bits += self.prediction_mode_bin3.estBits(0)
+            self.est_bits += self.probs.prediction_mode_bin1.estBits(1)
+            self.est_bits += self.probs.prediction_mode_bin2.estBits(1)
+            self.est_bits += self.probs.prediction_mode_bin3.estBits(0)
         elif predMode == PredictionMode.VERTICAL_PREDICTION:
-            self.est_bits += self.prediction_mode_bin1.estBits(1)
-            self.est_bits += self.prediction_mode_bin2.estBits(1)
-            self.est_bits += self.prediction_mode_bin3.estBits(1)
+            self.est_bits += self.probs.prediction_mode_bin1.estBits(1)
+            self.est_bits += self.probs.prediction_mode_bin2.estBits(1)
+            self.est_bits += self.probs.prediction_mode_bin3.estBits(1)
 
         coded_block_flag = np.any(qIdxList != 0)
-        self.est_bits += self.prob_cbf.estBits(coded_block_flag)
+        self.est_bits += self.probs.prob_cbf.estBits(coded_block_flag)
         if not coded_block_flag:
             return self.est_bits
 
         last_scan_index = np.max(np.nonzero(qIdxList))
-        self.expGolombProbAdapted(last_scan_index, self.prob_last_prefix, estimation=True)
+        self.expGolombProbAdapted(last_scan_index, self.probs.prob_last_prefix, estimation=True)
 
         self.getEstimateBits(qIdxList[last_scan_index], isLast=True)
         for k in range(last_scan_index - 1, -1, -1):

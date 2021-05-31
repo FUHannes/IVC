@@ -80,11 +80,11 @@ class ProbModel:
         return 0.000030517578125 * float(EntropyBits[self.pstate ^ bin])
 
     def estBitsUpd(self, bin: int) -> float:
-        numBits: float = self.estBits(bin)
+        numBits: float = 0.000030517578125 * float(EntropyBits[self.pstate ^ bin])
         if bin == self.mps():
-            self.updateMPS()
+            self.pstate = NextStateMPS[self.pstate]
         else:
-            self.updateLPS()
+            self.pstate = NextStateLPS[self.pstate]
         return numBits
 
     def state(self) -> int:
