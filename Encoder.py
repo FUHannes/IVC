@@ -113,15 +113,19 @@ class Encoder:
             self.image_reconstructed = self.image_reconstructed[:self.image_height, :self.image_width]
             self.write_out()
 
-    def reconstruct_block(self, pred_block, q_idx_block, x, y):
+    def reconstruct_block(self, pred_block, q_idx_block, x, y, update_rec_image=True):
         # reconstruct transform coefficients from quantization indexes
         recBlock = q_idx_block * self.qs
         # invoke 2D Transform inverse
         recBlock = Transformation().backward_dct(recBlock)
         # invoke prediction function (see 4.3 DC prediction)
         recBlock += pred_block
-        self.image_reconstructed[y:y + self.block_size, x:x + self.block_size] = np.clip(recBlock, 0, 255).astype(
-            'uint8')
+        recBlock = np.clip(recBlock, 0, 255).astype('uint8')
+
+        if update_rec_image:
+            self.image_reconstructed[y:y + self.block_size, x:x + self.block_size] = recBlock
+
+        return recBlock
 
     # encode block of current picture
     def encode_block(self, x: int, y: int):
@@ -143,6 +147,28 @@ class Encoder:
         self.est_bits += self.entropyEncoder.estBits(prediction_mode, diagonal)
         # actual entropy encoding
         self.entropyEncoder.writeQIndexBlock(diagonal, prediction_mode)
+
+    # calculate lagrangian cost for given block and prediction mode
+    def test_encode_block(self, x, y, pred_mode, _lambda):
+        # Accessor for current block
+        org_block = self.image[y:y + self.block_size, x:x + self.block_size]
+
+        # Prediction, Transform, Quantization
+        pred_block = self.intra_pred_calc.get_prediction(x, y, pred_mode)
+        pred_error = org_block.astype('int') - pred_block
+
+        trans_coeff = Transformation().forward_dct(pred_error)
+
+        q_idx_block = (np.sign(trans_coeff) * np.floor((np.abs(trans_coeff) / self.qs) + 0.4)).astype('int')
+
+        rec_block = self.reconstruct_block(pred_block, q_idx_block, x, y, update_rec_image=False)
+
+        # Distortion calculation using SSD.
+        distortion = np.sum(np.square(org_block - rec_block))
+        bitrate_estimation = self.entropyEncoder.estBits(pred_mode, sort_diagonal(q_idx_block))
+
+        # Return Lagrangian cost.
+        return distortion + _lambda * bitrate_estimation
 
     # opening and writing a binary file
     def write_out(self):
