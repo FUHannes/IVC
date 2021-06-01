@@ -76,10 +76,10 @@ class ProbModel:
     def updateMPS(self):
         self.pstate = NextStateMPS[self.pstate]
 
-    def estBits(self, bin: int) -> float:
+    def estBitsNoUpdate(self, bin: int) -> float:
         return 0.000030517578125 * float(EntropyBits[self.pstate ^ bin])
 
-    def estBitsUpd(self, bin: int) -> float:
+    def estBits(self, bin: int) -> float:
         numBits: float = 0.000030517578125 * float(EntropyBits[self.pstate ^ bin])
         if bin == self.mps():
             self.pstate = NextStateMPS[self.pstate]

@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 
 from IntraPredictionCalculator import PredictionMode
 from OBitstream import OBitstream
@@ -51,7 +52,11 @@ class EntropyEncoder:
             self.arith_enc.encodeBins(1, classIndex + 1, prob)
             self.arith_enc.encodeBinsEP(value + 1, classIndex)
         else:
-            self.est_bits += classIndex * prob.estBits(0) + prob.estBits(1) + classIndex
+            self.est_bits += classIndex # suffix part (bypass coded)
+            while classIndex > 0:
+                classIndex -= 1
+                self.est_bits += prob.estBits(0)
+            self.est_bits += prob.estBits(1)
 
     def writeQIndex(self, level: int, isLast=False):
         """ Writes a positive or negative value with exp golomb coding and sign bit
@@ -146,6 +151,7 @@ class EntropyEncoder:
     # similar to writeQindexBlock but estimation only
     def estBits(self, predMode, qIdxBlock):
         self.est_bits = 0
+        org_probs = copy.deepcopy(self.probs)
         qIdxList = qIdxBlock.ravel()
 
         if predMode == PredictionMode.PLANAR_PREDICTION:
@@ -165,6 +171,7 @@ class EntropyEncoder:
         coded_block_flag = np.any(qIdxList != 0)
         self.est_bits += self.probs.prob_cbf.estBits(coded_block_flag)
         if not coded_block_flag:
+            self.probs = org_probs
             return self.est_bits
 
         last_scan_index = np.max(np.nonzero(qIdxList))
@@ -174,4 +181,5 @@ class EntropyEncoder:
         for k in range(last_scan_index - 1, -1, -1):
             self.getEstimateBits(qIdxList[k])
 
+        self.probs = org_probs
         return self.est_bits
