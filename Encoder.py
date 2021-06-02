@@ -1,8 +1,8 @@
+import av
 import numpy as np
 
 from EntropyEncoder import EntropyEncoder
 from IntraPredictionCalculator import IntraPredictionCalculator
-from IntraPredictionCalculator import PredictionMode
 from IntraPredictionCalculator import random_prediction_mode
 from OBitstream import OBitstream
 from dct import Transformation
@@ -53,7 +53,7 @@ def sort_diagonal(mat: np.ndarray) -> np.ndarray:
 
 class Encoder:
 
-    def __init__(self, input_path, output_path, block_size, QP, reconstruction_path=None):
+    def __init__(self, input_path, output_path, block_size, QP, reconstruction_path=None, video_size=None):
         self.input_path = input_path
         self.output_path = output_path
         self.block_size = block_size
@@ -62,9 +62,7 @@ class Encoder:
         self.image_reconstructed = None
         self.entropyEncoder = None
         self.reconstruction_path = reconstruction_path
-        self._read_image()
-        self.pad_height = self.block_size - self.image_height % self.block_size if self.image_height % self.block_size != 0 else 0
-        self.pad_width = self.block_size - self.image_width % self.block_size if self.image_width % self.block_size != 0 else 0
+        self.video_size = video_size
         self.est_bits = 0
 
     def init_obitstream(self, img_height, img_width, path):
@@ -80,16 +78,25 @@ class Encoder:
         self.image = _read_image(self.input_path)
         self.image_height = self.image.shape[0]
         self.image_width = self.image.shape[1]
+        self.pad_height = self.block_size - self.image_height % self.block_size if self.image_height % self.block_size != 0 else 0
+        self.pad_width = self.block_size - self.image_width % self.block_size if self.image_width % self.block_size != 0 else 0
+
+    def read_video(self, size):
+        container = av.open(self.input_path, options=dict(video_size=size, pixel_format='gray'))
+        container.streams.video[0].thread_type = 'AUTO'
+
+        return container
 
     def _add_padding(self):
         self.image = np.pad(self.image, ((0, self.pad_height), (0, self.pad_width)), "edge")
 
-        # for testing (include matplotlib)    
+        # for testing (include matplotlib)
         # plt.imshow(image)
         # plt.show()
 
     # Gets an image and return an encoded bitstream. 
     def encode_image(self):
+        self._read_image()
         # add padding
         self._add_padding()
         self.image_reconstructed = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],
@@ -112,6 +119,18 @@ class Encoder:
         if self.reconstruction_path:
             self.image_reconstructed = self.image_reconstructed[:self.image_height, :self.image_width]
             self.write_out()
+
+    def encode_video(self, n_frames):
+        video = self.read_video(self.video_size)
+        # TODO: Investigate why only one frame gets read
+        # TODO: (Optionally )Add tqdm to see the progress
+        for frame_no, frame in enumerate(video.decode()):
+            if frame_no < 100:
+                # Encode video frame by frame
+                _frame = frame.to_ndarray()
+                print(f'Encoding frame #{frame_no}')
+
+        video.close()
 
     def reconstruct_block(self, pred_block, q_idx_block, x, y, update_rec_image=True):
         # reconstruct transform coefficients from quantization indexes
@@ -138,7 +157,7 @@ class Encoder:
         # dct
         transCoeff = Transformation().forward_dct(predError)
         # quantization
-        qIdxBlock = (np.sign(transCoeff) * np.floor((np.abs(transCoeff)/self.qs) + 0.4)).astype('int')
+        qIdxBlock = (np.sign(transCoeff) * np.floor((np.abs(transCoeff) / self.qs) + 0.4)).astype('int')
         # reconstruction
         self.reconstruct_block(predBlock, qIdxBlock, x, y)
         # diagonal scan
