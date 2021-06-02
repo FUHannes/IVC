@@ -30,11 +30,25 @@ def main():
     parser.add_argument('-r', '--reconstruct',
                         help='path for reconstructed image at the encoder side',
                         dest='reconstruction_path')
+    parser.add_argument('-s', '--size',
+                        help='Specify the video dimensions (WxH) when encoding a video file (default: 416x240)',
+                        default='416x240',
+                        dest='video_size',
+                        type=str)
+    parser.add_argument('-n', '--n-frames',
+                        help='Specify the number of frames to be encoded',
+                        default=100,
+                        dest='n_frames',
+                        type=int)
     args = parser.parse_args()
 
     start_time = time.process_time()  # benchmarking speed
     enc = Encoder(args.input, args.bitstream, args.blocksize, args.qp, args.reconstruction_path)
-    enc.encode_image()  # encoding
+    if args.video_size is None:
+        enc.encode_image()
+    else:
+        width, height = list(map(int, args.video_size.split('x')))  # Parse width and height and cast to int
+        enc.encode_video(width, height, args.n_frames)
     encoding_time = time.process_time() - start_time
     print(f'it took {encoding_time * 1000} ms to encode')
 
