@@ -7,7 +7,7 @@ from Encoder import Encoder
 
 
 def main():
-    parser = argparse.ArgumentParser(description='PGM encoder')
+    parser = argparse.ArgumentParser(description='image/video encoder')
     parser.add_argument('-bs', '--blocksize',
                         help='block size in samples (default: 16)',
                         default=16,
@@ -20,7 +20,7 @@ def main():
                         dest='qp',
                         type=int)
     parser.add_argument('-i', '--input',
-                        help='input image in pgm format',
+                        help='input image in pgm format or input video',
                         required=True,
                         dest='input', )
     parser.add_argument('-b', '--bitstream',
@@ -28,16 +28,16 @@ def main():
                         required=True,
                         dest='bitstream')
     parser.add_argument('-r', '--reconstruct',
-                        help='path for reconstructed image at the encoder side',
+                        help='path for reconstructed image/video at the encoder side',
                         dest='reconstruction_path')
     parser.add_argument('-s', '--size',
-                        help='Specify the video dimensions (WxH) when encoding a video file (default: 416x240)',
-                        default='416x240',
+                        help='Specify the video dimensions (WxH) when encoding a video file',
+                        default=None,
                         dest='video_size',
                         type=str)
     parser.add_argument('-n', '--n-frames',
-                        help='Specify the number of frames to be encoded',
-                        default=100,
+                        help='Specify the number of frames to be encoded (video only)',
+                        default=30,
                         dest='n_frames',
                         type=int)
     args = parser.parse_args()

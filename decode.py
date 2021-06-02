@@ -7,18 +7,18 @@ from Decoder import Decoder
 
 
 def main():
-    parser = argparse.ArgumentParser(description='PGM decoder')
+    parser = argparse.ArgumentParser(description='image/video decoder')
     parser.add_argument('-b', '--bitstream',
                         help='bitstream file to be read by decoder',
                         required=True,
                         dest='bitstream')
     parser.add_argument('-o', '--output',
-                        help='reconstructed image in pgm format',
+                        help='reconstructed image or video',
                         required=True,
                         dest='output')
     parser.add_argument('-pgm',
-                        help='specifies whether output is written as PGM or raw data samples',
-                        default=True,
+                        help='if set write output as PGM image',
+                        action='store_true',
                         dest='pgm')
     args = parser.parse_args()
 

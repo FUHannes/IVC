@@ -39,7 +39,7 @@ def generate_data(filename, version, block_size=16):
     for index, quality in enumerate([8, 12, 16, 20, 24]):
         enc = Encoder(input_path, bitstream_path, block_size, quality)
         enc.encode_image()
-        dec = Decoder(bitstream_path, output_path)
+        dec = Decoder(bitstream_path, output_path, pgm=True)
         dec.decode_image()
 
         process = subprocess.run(
