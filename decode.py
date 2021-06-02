@@ -16,10 +16,14 @@ def main():
                         help='reconstructed image in pgm format',
                         required=True,
                         dest='output')
+    parser.add_argument('-pgm',
+                        help='specifies whether output is written as PGM or raw data samples',
+                        default=True,
+                        dest='pgm')
     args = parser.parse_args()
 
     start_time = time.process_time()  # benchmarking speed
-    dec = Decoder(args.bitstream, args.output)
+    dec = Decoder(args.bitstream, args.output, args.pgm)
     dec.decode_image()
     decoding_time = time.process_time() - start_time
     print(f'it took {decoding_time * 1000} ms to decode')

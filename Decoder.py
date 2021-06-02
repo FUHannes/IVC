@@ -31,8 +31,9 @@ def de_diagonalize(arr: np.ndarray) -> np.ndarray:
 
 class Decoder:
 
-    def __init__(self, input_path, output_path):
+    def __init__(self, input_path, output_path, pgm):
         self.output_path = output_path
+        self.pgm = pgm
         self.bitstream = IBitstream(input_path)
         self.image_width = self.bitstream.get_bits(16)
         self.image_height = self.bitstream.get_bits(16)
@@ -62,7 +63,8 @@ class Decoder:
     # opening and writing a binary file
     def write_out(self):
         out_file = open(self.output_path, "wb")
-        out_file.write(f'P5\n{self.image_width} {self.image_height}\n255\n'.encode())
+        if self.pgm:
+            out_file.write(f'P5\n{self.image_width} {self.image_height}\n255\n'.encode())
         out_file.write(self.image.ravel().tobytes())
         out_file.close()
         return True

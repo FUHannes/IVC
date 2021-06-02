@@ -43,11 +43,12 @@ def main():
     args = parser.parse_args()
 
     start_time = time.process_time()  # benchmarking speed
-    enc = Encoder(args.input, args.bitstream, args.blocksize, args.qp, args.reconstruction_path, args.video_size)
+    enc = Encoder(args.input, args.bitstream, args.blocksize, args.qp, args.reconstruction_path)
     if args.video_size is None:
         enc.encode_image()
     else:
-        enc.encode_video(n_frames=args.n_frames)
+        width, height = list(map(int, args.video_size.split('x')))  # Parse width and height and cast to int
+        enc.encode_video(width, height, args.n_frames)
     encoding_time = time.process_time() - start_time
     print(f'it took {encoding_time * 1000} ms to encode')
 
