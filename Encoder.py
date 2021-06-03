@@ -64,6 +64,7 @@ class Encoder:
         self.qp = QP
         self.qs = 2 ** (self.qp / 4)
         self.image_reconstructed = None
+        self.image_reconstructed_array = []
         self.entropyEncoder = None
         self.reconstruction_path = reconstruction_path
         self.est_bits = 0
@@ -77,12 +78,17 @@ class Encoder:
         return outputBitstream
 
     # read image
-    def _read_image(self):
-        self.image = _read_image(self.input_path)
+    def _read_image(self, frame = None):
+        if frame is not None:
+            self.image=frame
+        else:
+            self.image = _read_image(self.input_path)
+
         self.image_height = self.image.shape[0]
         self.image_width = self.image.shape[1]
         self.pad_height = self.block_size - self.image_height % self.block_size if self.image_height % self.block_size != 0 else 0
         self.pad_width = self.block_size - self.image_width % self.block_size if self.image_width % self.block_size != 0 else 0
+
 
     def _add_padding(self):
         self.image = np.pad(self.image, ((0, self.pad_height), (0, self.pad_width)), "edge")
@@ -94,35 +100,57 @@ class Encoder:
     # Gets an image and return an encoded bitstream. 
     def encode_image(self):
         self._read_image()
+        # open bitstream and write header
+        self.outputBitstream = self.init_obitstream(self.image_height, self.image_width, self.output_path)
+        self.entropyEncoder = EntropyEncoder(self.outputBitstream)
+
+        self.encode_frame()
+
+        # terminate bitstream
+        self.entropyEncoder.terminate()
+        self.outputBitstream.terminate()
+        print(f'Estimated # of bits {self.est_bits}')
+        print(f'# of bits in bitstream without header {self.outputBitstream.bits_written - 56}')
+        if self.reconstruction_path:
+            self.image_reconstructed = self.image_reconstructed[:self.image_height, :self.image_width]
+            self.image_reconstructed_array.append(self.image_reconstructed)
+            self.write_out()
+
+    # If you change this methods pay attention because is used in both encode_image and encode_video() methods
+    def encode_frame(self):
         # add padding
         self._add_padding()
         self.image_reconstructed = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],
                                             dtype=np.uint8)
-        # open bitstream and write header
-        outputBitstream = self.init_obitstream(self.image_height, self.image_width, self.output_path)
+
         # initialize intra prediction calculator
         self.intra_pred_calc = IntraPredictionCalculator(self.image_reconstructed, self.block_size)
-        # initialize entropy encoder
-        self.entropyEncoder = EntropyEncoder(outputBitstream)
+
         # process image
         for yi in range(0, self.image_height + self.pad_height, self.block_size):
             for xi in range(0, self.image_width + self.pad_width, self.block_size):
                 self.encode_block(xi, yi)
-        # terminate bitstream
-        self.entropyEncoder.terminate()
-        outputBitstream.terminate()
-        print(f'Estimated # of bits {self.est_bits}')
-        print(f'# of bits in bitstream without header {outputBitstream.bits_written - 56}')
-        if self.reconstruction_path:
-            self.image_reconstructed = self.image_reconstructed[:self.image_height, :self.image_width]
-            self.write_out()
 
     def encode_video(self, width, height, n_frames):
         video = read_video(self.input_path, width, height, n_frames)
+        # open bitstream and write header
+        self.outputBitstream = self.init_obitstream(height, width, self.output_path)
+        self.entropyEncoder = EntropyEncoder(self.outputBitstream)
+
         for frame in tqdm(video):
-            # TODO: Encode video frame by frame
-            self.encode_image()
-            pass
+            self._read_image(frame)
+            self.encode_frame()
+            self.image_reconstructed = self.image_reconstructed[:self.image_height, :self.image_width]
+            self.image_reconstructed_array.append(self.image_reconstructed)
+
+        # terminate bitstream
+        self.entropyEncoder.terminate()
+        self.outputBitstream.terminate()
+        print(f'Estimated # of bits {self.est_bits}')
+        print(f'# of bits in bitstream without header {self.outputBitstream.bits_written - 56}')
+        if self.reconstruction_path:
+            self.write_out()
+
 
 
     def reconstruct_block(self, pred_block, q_idx_block, x, y, update_rec_image=True):
@@ -189,6 +217,11 @@ class Encoder:
     def write_out(self):
         out_file = open(self.reconstruction_path, "wb")
         out_file.write(f'P5\n{self.image_width} {self.image_height}\n255\n'.encode())
-        out_file.write(self.image_reconstructed.ravel().tobytes())
+        # If it is only an image, it will skip this cycle. Otherwise, If it a video the last frame will be written after this cycle
+        for image_reconstructed in self.image_reconstructed_array:
+            out_file.write(image_reconstructed.ravel().tobytes())
         out_file.close()
         return True
+
+
+
