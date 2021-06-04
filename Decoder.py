@@ -45,6 +45,7 @@ class Decoder:
         self.pad_width  = self.block_size - self.image_width%self.block_size if self.image_width%self.block_size != 0 else 0
         self.image = np.zeros([self.image_height + self.pad_height, self.image_width+self.pad_width], dtype=np.uint8)
         self.intra_pred_calc = IntraPredictionCalculator(self.image, self.block_size)
+        self.transformation = Transformation(self.block_size)
 
     def decode_block(self, x: int, y: int):
         # entropy decoding (EntropyDecoder)
@@ -54,7 +55,7 @@ class Decoder:
         # de-quantization
         recBlock = ordered_block * self.qs
         # idct
-        recBlock = Transformation().backward_dct(recBlock)
+        recBlock = self.transformation.backward_transform(recBlock, prediction_mode)
         # adding prediction
         recBlock += self.intra_pred_calc.get_prediction(x, y, prediction_mode)
         # clipping (0,255) and store to image

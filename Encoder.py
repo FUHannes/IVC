@@ -67,6 +67,7 @@ class Encoder:
         self.entropyEncoder = None
         self.reconstruction_path = reconstruction_path
         self.est_bits = 0
+        self.transformation = Transformation(block_size)
 
     def init_obitstream(self, img_height, img_width, path):
         outputBitstream = OBitstream(path)
@@ -113,7 +114,7 @@ class Encoder:
                     cost_mode_tuples.append((self.test_encode_block(xi, yi, pred_mode, lagrange_multiplier), pred_mode))
                 min_cost_mode = min(cost_mode_tuples, key = lambda t: t[0])
                 optimal_pred_mode = min_cost_mode[1]
-
+                
                 self.encode_block(xi, yi, optimal_pred_mode)
         # terminate bitstream
         self.entropyEncoder.terminate()
@@ -132,11 +133,11 @@ class Encoder:
             pass
 
 
-    def reconstruct_block(self, pred_block, q_idx_block, x, y, update_rec_image=True):
+    def reconstruct_block(self, pred_block, q_idx_block, x, y, prediction_mode, update_rec_image=True):
         # reconstruct transform coefficients from quantization indexes
         recBlock = q_idx_block * self.qs
         # invoke 2D Transform inverse
-        recBlock = Transformation().backward_dct(recBlock)
+        recBlock = self.transformation.backward_transform(recBlock, prediction_mode)
         # invoke prediction function (see 4.3 DC prediction)
         recBlock += pred_block
         recBlock = np.clip(recBlock, 0, 255).astype('uint8')
@@ -155,11 +156,11 @@ class Encoder:
         predBlock = self.intra_pred_calc.get_prediction(x, y, pred_mode)
         predError = orgBlock.astype('int') - predBlock
         # dct
-        transCoeff = Transformation().forward_dct(predError)
+        transCoeff = self.transformation.forward_transform(predError, pred_mode)
         # quantization
         qIdxBlock = (np.sign(transCoeff) * np.floor((np.abs(transCoeff) / self.qs) + 0.4)).astype('int')
         # reconstruction
-        self.reconstruct_block(predBlock, qIdxBlock, x, y)
+        self.reconstruct_block(predBlock, qIdxBlock, x, y, pred_mode)
         # diagonal scan
         diagonal = sort_diagonal(qIdxBlock)
         # Sum estimated bits per block
@@ -176,11 +177,11 @@ class Encoder:
         pred_block = self.intra_pred_calc.get_prediction(x, y, pred_mode)
         pred_error = org_block.astype('int') - pred_block
 
-        trans_coeff = Transformation().forward_dct(pred_error)
+        trans_coeff = self.transformation.forward_transform(pred_error,pred_mode)
 
         q_idx_block = (np.sign(trans_coeff) * np.floor((np.abs(trans_coeff) / self.qs) + 0.4)).astype('int')
 
-        rec_block = self.reconstruct_block(pred_block, q_idx_block, x, y, update_rec_image=False)
+        rec_block = self.reconstruct_block(pred_block, q_idx_block, x, y,pred_mode, update_rec_image=False)
 
         # Distortion calculation using SSD.
         distortion = np.sum(np.square(org_block - rec_block))
