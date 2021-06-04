@@ -40,11 +40,10 @@ class Decoder:
         self.block_size = self.bitstream.get_bits(16)
         self.qp = self.bitstream.get_bits(8)
         self.qs = 2 ** (self.qp / 4)
-        self.ent_dec = EntropyDecoder(self.bitstream)
         self.pad_height  = self.block_size - self.image_height%self.block_size if self.image_height%self.block_size != 0 else 0
         self.pad_width  = self.block_size - self.image_width%self.block_size if self.image_width%self.block_size != 0 else 0
         self.image = np.zeros([self.image_height + self.pad_height, self.image_width+self.pad_width], dtype=np.uint8)
-        self.intra_pred_calc = IntraPredictionCalculator(self.image, self.block_size)
+        self.image_array = []
 
     def decode_block(self, x: int, y: int):
         # entropy decoding (EntropyDecoder)
@@ -65,17 +64,34 @@ class Decoder:
         out_file = open(self.output_path, "wb")
         if self.pgm:
             out_file.write(f'P5\n{self.image_width} {self.image_height}\n255\n'.encode())
-        out_file.write(self.image.ravel().tobytes())
+        for image in self.image_array:
+            # padding is removed directly before output
+            image = image[:self.image_height,:self.image_width]
+            out_file.write(image.ravel().tobytes())
         out_file.close()
         return True
 
-    def _remove_padding(self):
-        self.image = self.image[:self.image_height,:self.image_width]
+    def decode_next_frame(self):
+        self.intra_pred_calc = IntraPredictionCalculator(self.image, self.block_size)
 
-    def decode_image(self):
-        for yi in range(0, self.image_height+self.pad_height, self.block_size):
-            for xi in range(0, self.image_width+self.pad_width, self.block_size):
+        # start new arithmetic codeword
+        self.ent_dec = EntropyDecoder(self.bitstream)
+
+        # decode blocks
+        for yi in range(0, self.image_height + self.pad_height, self.block_size):
+            for xi in range(0, self.image_width + self.pad_width, self.block_size):
                 self.decode_block(xi, yi)
-        self._remove_padding()
-        self.ent_dec.terminate()
+            
+        # terminate arithmatic codeword and check whether everything is ok so far
+        is_ok = self.ent_dec.terminate()
+        if not is_ok:
+            raise Exception('Arithmetic codeword not correctly terminated at end of frame')
+
+        self.image_array.append(self.image)
+        self.image = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],
+                               dtype=np.uint8)
+
+    def decode_all_frames(self):
+        while not self.bitstream.is_EOF():
+            self.decode_next_frame()
         self.write_out()

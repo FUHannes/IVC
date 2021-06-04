@@ -7,6 +7,13 @@ class IBitstream:
         self.availBits = 0
         self.buffer = 0
 
+    def is_EOF(self) -> bool:
+        byte_s = self.file.read(1)
+        if not byte_s:
+            return True
+        self.file.seek(-1, 1)
+        return False
+
     def get_bit(self) -> int:
         """Reads a single bit from the bitstream
 
