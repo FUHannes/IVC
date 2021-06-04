@@ -40,7 +40,7 @@ def generate_data(filename, version, block_size=16):
         enc = Encoder(input_path, bitstream_path, block_size, quality)
         enc.encode_image()
         dec = Decoder(bitstream_path, output_path, pgm=True)
-        dec.decode_image()
+        dec.decode_all_frames()
 
         process = subprocess.run(
             [PSNR_TOOL_PATH, input_path, output_path, bitstream_path],
