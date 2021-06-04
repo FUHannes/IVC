@@ -2,9 +2,8 @@ import numpy as np
 
 from EntropyDecoder import EntropyDecoder
 from IBitstream import IBitstream
-from dct import Transformation
 from IntraPredictionCalculator import IntraPredictionCalculator
-from IntraPredictionCalculator import PredictionMode
+from dct import Transformation
 
 
 def de_diagonalize(arr: np.ndarray) -> np.ndarray:
@@ -75,17 +74,15 @@ class Decoder:
         self.image = self.image[:self.image_height,:self.image_width]
 
     def decode_image(self):
-        i =0
         while not self.bitstream.is_EOF():
-            print(i)
-            i+=1
-            for yi in range(0, self.image_height+self.pad_height, self.block_size):
-                for xi in range(0, self.image_width+self.pad_width, self.block_size):
+            for yi in range(0, self.image_height + self.pad_height, self.block_size):
+                for xi in range(0, self.image_width + self.pad_width, self.block_size):
                     self.decode_block(xi, yi)
+
+            self._remove_padding()
             self.image_array.append(self.image)
             self.image = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],
                                   dtype=np.uint8)
 
-        self._remove_padding()
         self.ent_dec.terminate()
         self.write_out()

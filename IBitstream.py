@@ -13,6 +13,7 @@ class IBitstream:
             return True
         self.file.seek(-1, 1)
         return False
+
     def get_bit(self) -> int:
         """Reads a single bit from the bitstream
 
