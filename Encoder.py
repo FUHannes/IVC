@@ -3,7 +3,7 @@ from tqdm import tqdm
 
 from EntropyEncoder import EntropyEncoder
 from IntraPredictionCalculator import IntraPredictionCalculator
-from IntraPredictionCalculator import random_prediction_mode
+from IntraPredictionCalculator import PredictionMode
 from OBitstream import OBitstream
 from dct import Transformation
 
@@ -91,7 +91,7 @@ class Encoder:
         # plt.imshow(image)
         # plt.show()
 
-    # Gets an image and return an encoded bitstream. 
+    # Gets an image and return an encoded bitstream.
     def encode_image(self):
         self._read_image()
         # add padding
@@ -105,9 +105,16 @@ class Encoder:
         # initialize entropy encoder
         self.entropyEncoder = EntropyEncoder(outputBitstream)
         # process image
+        lagrange_multiplier = 0.1 * self.qs * self.qs
         for yi in range(0, self.image_height + self.pad_height, self.block_size):
             for xi in range(0, self.image_width + self.pad_width, self.block_size):
-                self.encode_block(xi, yi)
+                cost_mode_tuples = []
+                for pred_mode in PredictionMode:
+                    cost_mode_tuples.append((self.test_encode_block(xi, yi, pred_mode, lagrange_multiplier), pred_mode))
+                min_cost_mode = min(cost_mode_tuples, key = lambda t: t[0])
+                optimal_pred_mode = min_cost_mode[1]
+
+                self.encode_block(xi, yi, optimal_pred_mode)
         # terminate bitstream
         self.entropyEncoder.terminate()
         outputBitstream.terminate()
@@ -141,12 +148,11 @@ class Encoder:
 
 
     # encode block of current picture
-    def encode_block(self, x: int, y: int):
+    def encode_block(self, x: int, y: int, pred_mode: PredictionMode):
         # accessor for current block
         orgBlock = self.image[y:y + self.block_size, x:x + self.block_size]
         # prediction
-        prediction_mode = random_prediction_mode()
-        predBlock = self.intra_pred_calc.get_prediction(x, y, prediction_mode)
+        predBlock = self.intra_pred_calc.get_prediction(x, y, pred_mode)
         predError = orgBlock.astype('int') - predBlock
         # dct
         transCoeff = Transformation().forward_dct(predError)
@@ -157,17 +163,16 @@ class Encoder:
         # diagonal scan
         diagonal = sort_diagonal(qIdxBlock)
         # Sum estimated bits per block
-        self.est_bits += self.entropyEncoder.estBits(prediction_mode, diagonal)
+        self.est_bits += self.entropyEncoder.estBits(pred_mode, diagonal)
         # actual entropy encoding
-        self.entropyEncoder.writeQIndexBlock(diagonal, prediction_mode)
+        self.entropyEncoder.writeQIndexBlock(diagonal, pred_mode)
 
-
-    # calculate lagrangian cost for given block and prediction mode
-    def test_encode_block(self, x, y, pred_mode, _lambda):
-        # Accessor for current block
+    # Calculate lagrangian cost for given block and prediction mode.
+    def test_encode_block(self, x: int, y: int, pred_mode: PredictionMode, lagrange_multiplier):
+        # Accessor for current block.
         org_block = self.image[y:y + self.block_size, x:x + self.block_size]
 
-        # Prediction, Transform, Quantization
+        # Prediction, Transform, Quantization.
         pred_block = self.intra_pred_calc.get_prediction(x, y, pred_mode)
         pred_error = org_block.astype('int') - pred_block
 
@@ -182,7 +187,7 @@ class Encoder:
         bitrate_estimation = self.entropyEncoder.estBits(pred_mode, sort_diagonal(q_idx_block))
 
         # Return Lagrangian cost.
-        return distortion + _lambda * bitrate_estimation
+        return distortion + lagrange_multiplier * bitrate_estimation
 
 
     # opening and writing a binary file
