@@ -109,5 +109,8 @@ def plot_data(filename, version, versions):
     plt.xlabel('X: Bits (bpp)')
     plt.ylabel('Y: PSNR (db)')
     plt.legend()
+    plt.xlim(0.0,2.0)
+    plt.ylim(20.0,50.0)
+    plt.title(filename)
     plt.savefig("PSNR_" + filename + ".png")
     plt.show()
