@@ -105,7 +105,7 @@ class Encoder:
         # open bitstream and write header
         self.outputBitstream = self.init_obitstream(self.image_height, self.image_width, self.output_path)
 
-        self.encode_frame()
+        self.encode_frame(True)
 
         # terminate bitstream
         self.outputBitstream.terminate()
@@ -117,7 +117,7 @@ class Encoder:
 
 
     # If you change this methods pay attention because is used in both encode_image and encode_video() methods
-    def encode_frame(self):
+    def encode_frame(self, show_frame_progress = False):
         # add padding
         self._add_padding()
         self.image_reconstructed = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],
@@ -129,10 +129,16 @@ class Encoder:
         # initialize intra prediction calculator
         self.intra_pred_calc = IntraPredictionCalculator(self.image_reconstructed, self.block_size)
 
+        if show_frame_progress:
+            total_blocks = ((self.image_height + self.pad_height) // self.block_size) * ((self.image_width + self.pad_width) // self.block_size)
+            progress_bar = tqdm(total=total_blocks)
+
         # process image
         lagrange_multiplier = 0.1 * self.qs * self.qs
         for yi in range(0, self.image_height + self.pad_height, self.block_size):
             for xi in range(0, self.image_width + self.pad_width, self.block_size):
+                if show_frame_progress:
+                    progress_bar.update()
                 # mode decision
                 cost_mode_tuples = []
                 for pred_mode in PredictionMode:
@@ -143,6 +149,9 @@ class Encoder:
                 # encoding using selected mode
                 self.encode_block(xi, yi, optimal_pred_mode)
         
+        if show_frame_progress:
+            progress_bar.close()
+
         # terminate arithmetic codeword (but keep output bitstream alive)
         self.entropyEncoder.terminate()
 
@@ -192,15 +201,24 @@ class Encoder:
         # dct
         transCoeff = self.transformation.forward_transform(predError, pred_mode)
         # quantization
-        qIdxBlock = (np.sign(transCoeff) * np.floor((np.abs(transCoeff) / self.qs) + 0.4)).astype('int')
+        qIdxBlock: np.ndarray = (np.sign(transCoeff) * np.floor((np.abs(transCoeff) / self.qs) + 0.4)).astype('int')
         # reconstruction
         self.reconstruct_block(predBlock, qIdxBlock, x, y, pred_mode)
-        # diagonal scan
-        diagonal = sort_diagonal(qIdxBlock)
+        
+        if pred_mode == PredictionMode.PLANAR_PREDICTION or pred_mode == PredictionMode.DC_PREDICTION:
+            # diagonal scan
+            scanned_block = sort_diagonal(qIdxBlock)
+        elif pred_mode == PredictionMode.HORIZONTAL_PREDICTION:
+            # vertical scan: Transposed block
+            scanned_block = qIdxBlock.T
+        elif pred_mode == PredictionMode.VERTICAL_PREDICTION:
+            # horizontal scan: unchanged block
+            scanned_block = qIdxBlock
+         
         # Sum estimated bits per block
-        self.est_bits += self.entropyEncoder.estBits(pred_mode, diagonal)
+        self.est_bits += self.entropyEncoder.estBits(pred_mode, scanned_block)
         # actual entropy encoding
-        self.entropyEncoder.writeQIndexBlock(diagonal, pred_mode)
+        self.entropyEncoder.writeQIndexBlock(scanned_block, pred_mode)
 
 
     # Calculate lagrangian cost for given block and prediction mode.

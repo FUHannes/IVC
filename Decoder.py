@@ -49,8 +49,15 @@ class Decoder:
     def decode_block(self, x: int, y: int):
         # entropy decoding (EntropyDecoder)
         ent_dec_block, prediction_mode = self.ent_dec.readQIndexBlock(self.block_size)
-        # de-diagonal scan
-        ordered_block = de_diagonalize(ent_dec_block)
+        # scan unpacking
+        
+        if prediction_mode == PredictionMode.DC_PREDICTION or prediction_mode == PredictionMode.PLANAR_PREDICTION:
+            ordered_block = de_diagonalize(ent_dec_block)
+        elif prediction_mode == PredictionMode.HORIZONTAL_PREDICTION:
+            ordered_block = ent_dec_block.T
+        elif prediction_mode == PredictionMode.VERTICAL_PREDICTION:
+            ordered_block = ent_dec_block
+
         # de-quantization
         recBlock = ordered_block * self.qs
         # idct
