@@ -238,7 +238,18 @@ class Encoder:
 
         # Distortion calculation using SSD.
         distortion = np.sum(np.square(org_block - rec_block))
-        bitrate_estimation = self.entropyEncoder.estBits(pred_mode, sort_diagonal(q_idx_block))
+
+        if pred_mode == PredictionMode.PLANAR_PREDICTION or pred_mode == PredictionMode.DC_PREDICTION:
+            # diagonal scan
+            scanned_block = sort_diagonal(q_idx_block)
+        elif pred_mode == PredictionMode.HORIZONTAL_PREDICTION:
+            # vertical scan: Transposed block
+            scanned_block = q_idx_block.T
+        elif pred_mode == PredictionMode.VERTICAL_PREDICTION:
+            # horizontal scan: unchanged block
+            scanned_block = q_idx_block
+
+        bitrate_estimation = self.entropyEncoder.estBits(pred_mode, scanned_block)
 
         # Return Lagrangian cost.
         return distortion + lagrange_multiplier * bitrate_estimation
