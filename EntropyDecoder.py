@@ -4,6 +4,7 @@ from IBitstream import IBitstream
 from arithBase import ProbModel
 from arithDecoder import ArithDecoder
 from IntraPredictionCalculator import PredictionMode
+from ContextModeler import ContextModeler
 
 
 def sign(b):
@@ -15,57 +16,52 @@ def sign(b):
 
 # class for all the entropy decoding
 class EntropyDecoder:
-    def __init__(self, bitstream: IBitstream):
+    def __init__(self, bitstream: IBitstream, block_size: int):
         self.arith_dec = ArithDecoder(bitstream)
-        self.prob_sig_flag = ProbModel()
-        self.prob_gt1_flag = ProbModel()
-        self.prob_level_prefix = ProbModel()
-        self.prob_cbf = ProbModel()
-        self.prob_last_prefix = ProbModel()
-        self.prediction_mode_bin1 = ProbModel()
-        self.prediction_mode_bin2 = ProbModel()
-        self.prediction_mode_bin3 = ProbModel()
+        self.cm = ContextModeler(block_size)
+        self.block_size = block_size
 
-    def readQIndexBlock(self, blockSize: int):
+    def readQIndexBlock(self):
         # loop over all positions inside NxN block
         #  --> call readQIndex for all quantization index
 
-        out_integer_array = np.zeros(blockSize*blockSize, dtype=np.int32)
+        out_integer_array = np.zeros(self.block_size*self.block_size, dtype=np.int32)
 
-        if self.arith_dec.decodeBin(self.prediction_mode_bin1) == 0:
+        if self.arith_dec.decodeBin(self.cm.prediction_mode_bin1) == 0:
             prediction_mode = PredictionMode.PLANAR_PREDICTION
-        elif self.arith_dec.decodeBin(self.prediction_mode_bin2) == 0:
+        elif self.arith_dec.decodeBin(self.cm.prediction_mode_bin2) == 0:
             prediction_mode = PredictionMode.DC_PREDICTION
-        elif self.arith_dec.decodeBin(self.prediction_mode_bin3) == 0:
+        elif self.arith_dec.decodeBin(self.cm.prediction_mode_bin3) == 0:
             prediction_mode = PredictionMode.HORIZONTAL_PREDICTION
         else:
             prediction_mode = PredictionMode.VERTICAL_PREDICTION
 
-        coded_block_flag = self.arith_dec.decodeBin(self.prob_cbf)
+        coded_block_flag = self.arith_dec.decodeBin(self.cm.prob_cbf)
         if not coded_block_flag:
-            return out_integer_array.reshape([blockSize, blockSize]), prediction_mode
+            return out_integer_array.reshape([self.block_size, self.block_size]), prediction_mode
 
-        last_scan_index = self.expGolombProbAdapted(self.prob_last_prefix)
-        out_integer_array[last_scan_index] = self.readQIndex(isLast=True)
+        last_scan_index = self.expGolombProbAdapted(self.cm.prob_last_prefix)
+        out_integer_array[last_scan_index] = self.readQIndex(last_scan_index, isLast=True)
 
         for k in range(last_scan_index-1, -1, -1):
-            out_integer_array[k] = self.readQIndex()
+            out_integer_array[k] = self.readQIndex(k)
 
-        return out_integer_array.reshape([blockSize, blockSize]), prediction_mode
+        return out_integer_array.reshape([self.block_size, self.block_size]), prediction_mode
 
-    def readQIndex(self, isLast=False):
+    def readQIndex(self, pos, isLast=False):
+        self.cm.switchContext(pos)
         if not isLast:
-            sig_flag = self.arith_dec.decodeBin(self.prob_sig_flag)
+            sig_flag = self.arith_dec.decodeBin(self.cm.prob_sig_flag)
             if sig_flag == 0:
                 return 0
 
-        gt1_flag = self.arith_dec.decodeBin(self.prob_gt1_flag)
+        gt1_flag = self.arith_dec.decodeBin(self.cm.prob_gt1_flag)
         if gt1_flag == 0:
             sign_flag = self.arith_dec.decodeBinEP()
             return sign(sign_flag)
 
         # (1) read expGolomb for absolute value
-        value = self.expGolombProbAdapted(self.prob_level_prefix) + 2
+        value = self.expGolombProbAdapted(self.cm.prob_level_prefix) + 2
         value *= sign(self.arith_dec.decodeBinEP())
 
         # (3) return value

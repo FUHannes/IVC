@@ -48,7 +48,7 @@ class Decoder:
 
     def decode_block(self, x: int, y: int):
         # entropy decoding (EntropyDecoder)
-        ent_dec_block, prediction_mode = self.ent_dec.readQIndexBlock(self.block_size)
+        ent_dec_block, prediction_mode = self.ent_dec.readQIndexBlock()
         # scan unpacking
         
         if prediction_mode == PredictionMode.DC_PREDICTION or prediction_mode == PredictionMode.PLANAR_PREDICTION:
@@ -83,7 +83,7 @@ class Decoder:
         self.intra_pred_calc = IntraPredictionCalculator(self.image, self.block_size)
 
         # start new arithmetic codeword
-        self.ent_dec = EntropyDecoder(self.bitstream)
+        self.ent_dec = EntropyDecoder(self.bitstream, self.block_size)
 
         # decode blocks
         for yi in range(0, self.image_height + self.pad_height, self.block_size):

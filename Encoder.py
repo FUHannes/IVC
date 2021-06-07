@@ -124,7 +124,7 @@ class Encoder:
                                             dtype=np.uint8)
 
         # start new arithmetic codeword for each frame
-        self.entropyEncoder = EntropyEncoder(self.outputBitstream)
+        self.entropyEncoder = EntropyEncoder(self.outputBitstream, self.block_size)
 
         # initialize intra prediction calculator
         self.intra_pred_calc = IntraPredictionCalculator(self.image_reconstructed, self.block_size)
