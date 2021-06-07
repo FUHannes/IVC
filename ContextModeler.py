@@ -40,7 +40,7 @@ class ContextModeler:
         return np.array(diags)
     
     def switchContext(self, pos):
-  
+        # more or less arbitrary choice of diagonal classes
         if self.diag_map[pos] < 4:
             cl = 0
         elif self.diag_map[pos] < 7:

@@ -18,9 +18,9 @@ def bitsUsed(value: int) -> int:
     return counter
 
 
+# NOTE: no longer used
 class Probabilities:
     def __init__(self):
-        '''
         self.prob_sig_flag = ProbModel()
         self.prob_gt1_flag = ProbModel()
         self.prob_level_prefix = ProbModel()
@@ -29,7 +29,7 @@ class Probabilities:
         self.prediction_mode_bin1 = ProbModel()
         self.prediction_mode_bin2 = ProbModel()
         self.prediction_mode_bin3 = ProbModel()
-        '''
+        
 
 class EntropyEncoder:
     def __init__(self, bitstream: OBitstream, block_size: int):

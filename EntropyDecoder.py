@@ -20,16 +20,6 @@ class EntropyDecoder:
         self.arith_dec = ArithDecoder(bitstream)
         self.cm = ContextModeler(block_size)
         self.block_size = block_size
-        '''
-        self.prob_sig_flag = ProbModel()
-        self.prob_gt1_flag = ProbModel()
-        self.prob_level_prefix = ProbModel()
-        self.prob_cbf = ProbModel()
-        self.prob_last_prefix = ProbModel()
-        self.prediction_mode_bin1 = ProbModel()
-        self.prediction_mode_bin2 = ProbModel()
-        self.prediction_mode_bin3 = ProbModel()
-        '''
 
     def readQIndexBlock(self):
         # loop over all positions inside NxN block
