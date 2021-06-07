@@ -67,24 +67,6 @@ class EntropyDecoder:
         # (3) return value
         return value
 
-    # NOTE: no longer required, replaced expGolombProbAdapted
-    def expGolomb(self):
-        # (1) read class index k using unary code (read all bits until next '1'; classIdx = num zeros)
-        # (2) read position inside class as fixed-length code of k bits [red bits]
-        # (3) return value
-
-        length = 0
-        while not self.arith_dec.decodeBinEP():
-            length += 1
-
-        value = 1
-        if length > 0:
-            value = value << length
-            value += self.arith_dec.decodeBinsEP(length)
-
-        value -= 1
-
-        return value
 
     def expGolombProbAdapted(self, prob):
         # (1) read class index k using unary code (read all bits until next '1'; classIdx = num zeros)

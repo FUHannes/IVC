@@ -18,34 +18,11 @@ def bitsUsed(value: int) -> int:
     return counter
 
 
-# NOTE: no longer used
-class Probabilities:
-    def __init__(self):
-        self.prob_sig_flag = ProbModel()
-        self.prob_gt1_flag = ProbModel()
-        self.prob_level_prefix = ProbModel()
-        self.prob_cbf = ProbModel()
-        self.prob_last_prefix = ProbModel()
-        self.prediction_mode_bin1 = ProbModel()
-        self.prediction_mode_bin2 = ProbModel()
-        self.prediction_mode_bin3 = ProbModel()
-        
-
 class EntropyEncoder:
     def __init__(self, bitstream: OBitstream, block_size: int):
         self.arith_enc = ArithEncoder(bitstream)
-        #self.cm = Probabilities()
         self.cm = ContextModeler(block_size)
         self.est_bits = 0
-
-    # NOTE: no longer required, replaced expGolombProbAdapted
-    def expGolomb(self, value: int):
-        assert (value >= 0)
-
-        classIndex = bitsUsed(value + 1) - 1  # class index
-
-        self.arith_enc.encodeBinsEP(1, classIndex + 1)
-        self.arith_enc.encodeBinsEP(value + 1, classIndex)
 
     def expGolombProbAdapted(self, value: int, prob, estimation=False):
         assert (value >= 0)
@@ -143,11 +120,9 @@ class EntropyEncoder:
             return
 
         last_scan_index = np.max(np.nonzero(qIdxList))
-        # last_scan_index = (np.where(qIdxList != 0))[-1]  # that doesn't work (returns a list)
         self.expGolombProbAdapted(last_scan_index, self.cm.prob_last_prefix)
 
         self.writeQIndex(qIdxList[last_scan_index], last_scan_index, isLast=True)
-        # self.getEstimateBits(qIdxList[last_scan_index], isLast=True)
         for k in range(last_scan_index - 1, -1, -1):
             self.writeQIndex(qIdxList[k], k)
 

@@ -73,20 +73,3 @@ class IntraPredictionCalculator:
         return pred_block
 
 
-        ## # original version (working, but rather slow)
-        ## x_border_idx = x - 1  #(x // self.blocksize) - 1
-        ## y_border_idx = y - 1  #(y // self.blocksize) - 1
-        ## 
-        ## predicted_block = np.zeros([self.blocksize, self.blocksize])
-        ## 
-        ## for local_x in range(0, self.blocksize):
-        ##     global_x = local_x + x
-        ## 
-        ##     for local_y in range(0, self.blocksize):
-        ##         global_y = local_y + y
-        ##         h = (self.blocksize - 1 - local_x) * self.image[global_y, x_border_idx] + (1 + local_x) * self.image[y_border_idx, x_border_idx + self.blocksize]
-        ##         v = (self.blocksize - 1 - local_y) * self.image[y_border_idx, global_x] + (1 + local_y) * self.image[y_border_idx + self.blocksize, x_border_idx]
-        ##         predicted_block[local_y, local_x] = (h + v) / (2 * self.blocksize)
-        ##  
-        ## return predicted_block.astype('int')
-

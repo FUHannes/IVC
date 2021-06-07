@@ -94,7 +94,7 @@ def parse_jpeg_data():
 def plot_data(filename, version, versions):
     versions = versions.split(',') + [version] if versions else [version]
 
-    fig = plt.figure(figsize=(10, 5))
+    fig = plt.figure(figsize=(20, 12))
     for version in versions:
         ver = pd.DataFrame(pd.read_pickle(os.path.join(
             DATA_ROOT_PATH, version, filename + DATA_SUFFIX)))
@@ -112,5 +112,5 @@ def plot_data(filename, version, versions):
     plt.xlim(0.0,2.0)
     plt.ylim(20.0,50.0)
     plt.title(filename)
-    plt.savefig("PSNR_" + filename + ".png")
+    plt.savefig("PSNR_" + filename + ".pdf")
     plt.show()
