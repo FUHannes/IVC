@@ -11,4 +11,7 @@ __*__
 /images/*/*.txt
 /images/*/*.jpeg
 *.png
+*.pdf
 dat/*/
+/videos/*/*.y
+/videos/*/*.txt
