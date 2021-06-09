@@ -85,15 +85,20 @@ class Decoder:
         # start new arithmetic codeword
         self.ent_dec = EntropyDecoder(self.bitstream, self.block_size)
 
+
         # decode blocks
         for yi in range(0, self.image_height + self.pad_height, self.block_size):
             for xi in range(0, self.image_width + self.pad_width, self.block_size):
                 self.decode_block(xi, yi)
-            
+
         # terminate arithmatic codeword and check whether everything is ok so far
         is_ok = self.ent_dec.terminate()
         if not is_ok:
             raise Exception('Arithmetic codeword not correctly terminated at end of frame')
+
+        if len(self.image_array) != 0:
+            # self.image = (np.add(self.image, self.image_array[-1])-128)*2
+            self.image = np.add(self.image, self.image_array[-1])
 
         self.image_array.append(self.image)
         self.image = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],

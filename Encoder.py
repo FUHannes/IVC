@@ -115,9 +115,13 @@ class Encoder:
             self.image_reconstructed_array.append(self.image_reconstructed)
             self.write_out()
 
-
     # If you change this methods pay attention because is used in both encode_image and encode_video() methods
-    def encode_frame(self, show_frame_progress = False):
+    def encode_frame(self, show_frame_progress=False):
+
+        if len(self.image_reconstructed_array) != 0:
+            # self.image = np.subtract(self.image, self.image_reconstructed_array[-1])//2 + 128
+            self.image = np.subtract(self.image, self.image_reconstructed_array[-1])
+
         # add padding
         self._add_padding()
         self.image_reconstructed = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],
@@ -175,7 +179,6 @@ class Encoder:
         if self.reconstruction_path:
             self.write_out()
 
-
     def reconstruct_block(self, pred_block, q_idx_block, x, y, prediction_mode, update_rec_image=True):
         # reconstruct transform coefficients from quantization indexes
         recBlock = q_idx_block * self.qs
@@ -183,13 +186,17 @@ class Encoder:
         recBlock = self.transformation.backward_transform(recBlock, prediction_mode)
         # invoke prediction function (see 4.3 DC prediction)
         recBlock += pred_block
+        # if len(self.image_reconstructed_array) != 0:
+        #     recBlock = np.subtract(recBlock, self.image_reconstructed_array[-1][y:y + self.block_size, x:x + self.block_size])
+
+
+
         recBlock = np.clip(recBlock, 0, 255).astype('uint8')
 
         if update_rec_image:
             self.image_reconstructed[y:y + self.block_size, x:x + self.block_size] = recBlock
 
         return recBlock
-
 
     # encode block of current picture
     def encode_block(self, x: int, y: int, pred_mode: PredictionMode):
