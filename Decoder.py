@@ -46,7 +46,7 @@ class Decoder:
         self.image_array = []
         self.transformation = Transformation(self.block_size)
 
-    def decode_block(self, x: int, y: int):
+    def decode_block_intra(self, x: int, y: int):
         # entropy decoding (EntropyDecoder)
         ent_dec_block, prediction_mode = self.ent_dec.readQIndexBlock()
         # scan unpacking
@@ -67,30 +67,18 @@ class Decoder:
         # clipping (0,255) and store to image
         self.image[y:y + self.block_size, x:x + self.block_size] = np.clip(recBlock, 0, 255).astype('uint8')
 
-    def decode_block_inter_intra(self, x: int, y: int):
+    def decode_block_inter(self, x: int, y: int):
         # entropy decoding (EntropyDecoder)
         ent_dec_block, prediction_mode = self.ent_dec.readQIndexBlock()
-        # scan unpacking
-
-        if prediction_mode == PredictionMode.DC_PREDICTION or prediction_mode == PredictionMode.PLANAR_PREDICTION:
-            ordered_block = de_diagonalize(ent_dec_block)
-        elif prediction_mode == PredictionMode.HORIZONTAL_PREDICTION:
-            ordered_block = ent_dec_block.T
-        elif prediction_mode == PredictionMode.VERTICAL_PREDICTION:
-            ordered_block = ent_dec_block
 
         # de-quantization
-        recBlock = ordered_block * self.qs
+        recBlock = ent_dec_block * self.qs
         # idct
         recBlock = self.transformation.backward_transform(recBlock, prediction_mode)
 
-        # adding prediction
-        if len(self.image_array) != 0:
-            # Inter prediction
-            recBlock += self._simple_inter_prediction(x, y)
-        else:
-            # Intra prediction
-            recBlock += self.intra_pred_calc.get_prediction(x, y, prediction_mode)
+        # Inter prediction
+        recBlock += self._simple_inter_prediction(x, y)
+
         # clipping (0,255) and store to image
         self.image[y:y + self.block_size, x:x + self.block_size] = np.clip(recBlock, 0, 255).astype('uint8')
 
@@ -106,7 +94,7 @@ class Decoder:
         out_file.close()
         return True
 
-    def decode_next_frame(self):
+    def decode_next_frame_intra(self):
         self.intra_pred_calc = IntraPredictionCalculator(self.image, self.block_size)
 
         # start new arithmetic codeword
@@ -116,7 +104,7 @@ class Decoder:
         # decode blocks
         for yi in range(0, self.image_height + self.pad_height, self.block_size):
             for xi in range(0, self.image_width + self.pad_width, self.block_size):
-                self.decode_block_inter_intra(xi, yi)
+                self.decode_block_intra(xi, yi)
 
         # terminate arithmatic codeword and check whether everything is ok so far
         is_ok = self.ent_dec.terminate()
@@ -127,9 +115,36 @@ class Decoder:
         self.image = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],
                                dtype=np.uint8)
 
+    def decode_next_frame_inter(self):
+        self.intra_pred_calc = IntraPredictionCalculator(self.image, self.block_size)
+
+        # start new arithmetic codeword
+        self.ent_dec = EntropyDecoder(self.bitstream, self.block_size)
+
+
+        # decode blocks
+        for yi in range(0, self.image_height + self.pad_height, self.block_size):
+            for xi in range(0, self.image_width + self.pad_width, self.block_size):
+                self.decode_block_inter(xi, yi)
+
+        # terminate arithmatic codeword and check whether everything is ok so far
+        is_ok = self.ent_dec.terminate()
+        if not is_ok:
+            raise Exception('Arithmetic codeword not correctly terminated at end of frame')
+
+        self.image_array.append(self.image)
+        self.image = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],
+                               dtype=np.uint8)
+
+
     def decode_all_frames(self):
+        is_first_frame = True
         while not self.bitstream.is_EOF():
-            self.decode_next_frame()
+            if not is_first_frame:
+                self.decode_next_frame_inter()
+            else:
+                self.decode_next_frame_intra()
+                is_first_frame = False
         self.write_out()
 
     def _simple_inter_prediction(self, x, y):
