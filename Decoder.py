@@ -70,9 +70,10 @@ class Decoder:
     def decode_block_inter(self, x: int, y: int):
         # entropy decoding (EntropyDecoder)
         ent_dec_block, prediction_mode = self.ent_dec.readQIndexBlock(inter_flag = True)
-
+        # reverse scanning
+        ordered_block = de_diagonalize(ent_dec_block)
         # de-quantization
-        recBlock = ent_dec_block * self.qs
+        recBlock = ordered_block * self.qs
         # idct
         recBlock = self.transformation.backward_transform(recBlock, prediction_mode)
 

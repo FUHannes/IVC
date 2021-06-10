@@ -278,11 +278,12 @@ class Encoder:
         qIdxBlock: np.ndarray = (np.sign(transCoeff) * np.floor((np.abs(transCoeff) / self.qs) + 0.4)).astype('int')
         # reconstruction
         self.reconstruct_block(predBlock, qIdxBlock, x, y, pred_mode)
-
+        # diagonal scanning
+        scanned_block = sort_diagonal(qIdxBlock)
         # Sum estimated bits per block
-        self.est_bits += self.entropyEncoder.estBits(pred_mode, qIdxBlock)
+        self.est_bits += self.entropyEncoder.estBits(pred_mode, scanned_block)
         # actual entropy encoding
-        self.entropyEncoder.writeQIndexBlock(qIdxBlock, pred_mode, inter_flag = True)
+        self.entropyEncoder.writeQIndexBlock(scanned_block, pred_mode, inter_flag = True)
 
     # Calculate lagrangian cost for given block and prediction mode.
     def test_encode_block(self, x: int, y: int, pred_mode: PredictionMode, lagrange_multiplier):
