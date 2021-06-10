@@ -95,24 +95,25 @@ class EntropyEncoder:
 
         self.est_bits += 1
 
-    def writeQIndexBlock(self, qIdxBlock, prediction_mode):
+    def writeQIndexBlock(self, qIdxBlock, prediction_mode, inter_flag:bool = False):
         """ Writes all values sequential to the bitstream
         """
         qIdxList = qIdxBlock.ravel()
 
-        if prediction_mode == PredictionMode.PLANAR_PREDICTION:
-            self.arith_enc.encodeBin(0, self.cm.prediction_mode_bin1)
-        elif prediction_mode == PredictionMode.DC_PREDICTION:
-            self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin1)
-            self.arith_enc.encodeBin(0, self.cm.prediction_mode_bin2)
-        elif prediction_mode == PredictionMode.HORIZONTAL_PREDICTION:
-            self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin1)
-            self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin2)
-            self.arith_enc.encodeBin(0, self.cm.prediction_mode_bin3)
-        elif prediction_mode == PredictionMode.VERTICAL_PREDICTION:
-            self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin1)
-            self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin2)
-            self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin3)
+        if not inter_flag:
+            if prediction_mode == PredictionMode.PLANAR_PREDICTION:
+                self.arith_enc.encodeBin(0, self.cm.prediction_mode_bin1)
+            elif prediction_mode == PredictionMode.DC_PREDICTION:
+                self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin1)
+                self.arith_enc.encodeBin(0, self.cm.prediction_mode_bin2)
+            elif prediction_mode == PredictionMode.HORIZONTAL_PREDICTION:
+                self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin1)
+                self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin2)
+                self.arith_enc.encodeBin(0, self.cm.prediction_mode_bin3)
+            elif prediction_mode == PredictionMode.VERTICAL_PREDICTION:
+                self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin1)
+                self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin2)
+                self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin3)
 
         coded_block_flag = np.any(qIdxList != 0)
         self.arith_enc.encodeBin(coded_block_flag, self.cm.prob_cbf)

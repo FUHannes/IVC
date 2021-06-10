@@ -282,7 +282,7 @@ class Encoder:
         # Sum estimated bits per block
         self.est_bits += self.entropyEncoder.estBits(pred_mode, qIdxBlock)
         # actual entropy encoding
-        self.entropyEncoder.writeQIndexBlock(qIdxBlock, pred_mode)
+        self.entropyEncoder.writeQIndexBlock(qIdxBlock, pred_mode, inter_flag = True)
 
     # Calculate lagrangian cost for given block and prediction mode.
     def test_encode_block(self, x: int, y: int, pred_mode: PredictionMode, lagrange_multiplier):

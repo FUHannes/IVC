@@ -69,7 +69,7 @@ class Decoder:
 
     def decode_block_inter(self, x: int, y: int):
         # entropy decoding (EntropyDecoder)
-        ent_dec_block, prediction_mode = self.ent_dec.readQIndexBlock()
+        ent_dec_block, prediction_mode = self.ent_dec.readQIndexBlock(inter_flag = True)
 
         # de-quantization
         recBlock = ent_dec_block * self.qs

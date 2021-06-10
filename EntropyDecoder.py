@@ -21,20 +21,22 @@ class EntropyDecoder:
         self.cm = ContextModeler(block_size)
         self.block_size = block_size
 
-    def readQIndexBlock(self):
+    def readQIndexBlock(self, inter_flag:bool = False):
         # loop over all positions inside NxN block
         #  --> call readQIndex for all quantization index
 
         out_integer_array = np.zeros(self.block_size*self.block_size, dtype=np.int32)
 
-        if self.arith_dec.decodeBin(self.cm.prediction_mode_bin1) == 0:
-            prediction_mode = PredictionMode.PLANAR_PREDICTION
-        elif self.arith_dec.decodeBin(self.cm.prediction_mode_bin2) == 0:
-            prediction_mode = PredictionMode.DC_PREDICTION
-        elif self.arith_dec.decodeBin(self.cm.prediction_mode_bin3) == 0:
-            prediction_mode = PredictionMode.HORIZONTAL_PREDICTION
-        else:
-            prediction_mode = PredictionMode.VERTICAL_PREDICTION
+        prediction_mode = PredictionMode.DC_PREDICTION
+        if not inter_flag:
+            if self.arith_dec.decodeBin(self.cm.prediction_mode_bin1) == 0:
+                prediction_mode = PredictionMode.PLANAR_PREDICTION
+            elif self.arith_dec.decodeBin(self.cm.prediction_mode_bin2) == 0:
+                prediction_mode = PredictionMode.DC_PREDICTION
+            elif self.arith_dec.decodeBin(self.cm.prediction_mode_bin3) == 0:
+                prediction_mode = PredictionMode.HORIZONTAL_PREDICTION
+            else:
+                prediction_mode = PredictionMode.VERTICAL_PREDICTION
 
         coded_block_flag = self.arith_dec.decodeBin(self.cm.prob_cbf)
         if not coded_block_flag:
