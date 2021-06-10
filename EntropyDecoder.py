@@ -21,26 +21,39 @@ class EntropyDecoder:
         self.cm = ContextModeler(block_size)
         self.block_size = block_size
 
-    def readQIndexBlock(self, inter_flag:bool = False):
+    def read_block_intra_pic(self):
+        # read side information
+        if self.arith_dec.decodeBin(self.cm.prediction_mode_bin1) == 0:
+            prediction_mode = PredictionMode.PLANAR_PREDICTION
+        elif self.arith_dec.decodeBin(self.cm.prediction_mode_bin2) == 0:
+            prediction_mode = PredictionMode.DC_PREDICTION
+        elif self.arith_dec.decodeBin(self.cm.prediction_mode_bin3) == 0:
+            prediction_mode = PredictionMode.HORIZONTAL_PREDICTION
+        else:
+            prediction_mode = PredictionMode.VERTICAL_PREDICTION
+
+        # read quantization indexes
+        qidx_block = self.read_qindexes_block()
+
+        return qidx_block, prediction_mode
+
+    def read_block_inter_pic(self):
+        # read side information: later
+
+        # read quantization indexes
+        qidx_block = self.read_qindexes_block()
+
+        return qidx_block
+    
+    def read_qindexes_block(self):
         # loop over all positions inside NxN block
         #  --> call readQIndex for all quantization index
 
         out_integer_array = np.zeros(self.block_size*self.block_size, dtype=np.int32)
 
-        prediction_mode = PredictionMode.DC_PREDICTION
-        if not inter_flag:
-            if self.arith_dec.decodeBin(self.cm.prediction_mode_bin1) == 0:
-                prediction_mode = PredictionMode.PLANAR_PREDICTION
-            elif self.arith_dec.decodeBin(self.cm.prediction_mode_bin2) == 0:
-                prediction_mode = PredictionMode.DC_PREDICTION
-            elif self.arith_dec.decodeBin(self.cm.prediction_mode_bin3) == 0:
-                prediction_mode = PredictionMode.HORIZONTAL_PREDICTION
-            else:
-                prediction_mode = PredictionMode.VERTICAL_PREDICTION
-
         coded_block_flag = self.arith_dec.decodeBin(self.cm.prob_cbf)
         if not coded_block_flag:
-            return out_integer_array.reshape([self.block_size, self.block_size]), prediction_mode
+            return out_integer_array.reshape([self.block_size, self.block_size])
 
         last_scan_index = self.expGolombProbAdapted(self.cm.prob_last_prefix)
         out_integer_array[last_scan_index] = self.readQIndex(last_scan_index, isLast=True)
@@ -48,7 +61,7 @@ class EntropyDecoder:
         for k in range(last_scan_index-1, -1, -1):
             out_integer_array[k] = self.readQIndex(k)
 
-        return out_integer_array.reshape([self.block_size, self.block_size]), prediction_mode
+        return out_integer_array.reshape([self.block_size, self.block_size])
 
     def readQIndex(self, pos, isLast=False):
         self.cm.switchContext(pos)
