@@ -185,8 +185,6 @@ class Encoder:
         recBlock = self.transformation.backward_transform(recBlock, prediction_mode)
         # invoke prediction function (see 4.3 DC prediction)
         recBlock += pred_block
-        # if len(self.image_reconstructed_array) != 0:
-        #     recBlock += self._simple_inter_prediction(x, y)
 
         recBlock = np.clip(recBlock, 0, 255).astype('uint8')
 
