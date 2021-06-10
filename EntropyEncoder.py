@@ -95,11 +95,27 @@ class EntropyEncoder:
 
         self.est_bits += 1
 
-    def writeQIndexBlock(self, qIdxBlock, prediction_mode):
-        """ Writes all values sequential to the bitstream
+    def write_qindexes_block(self, qIdxBlock):
+        """ Writes all quantization indexes
         """
         qIdxList = qIdxBlock.ravel()
 
+        coded_block_flag = np.any(qIdxList != 0)
+        self.arith_enc.encodeBin(coded_block_flag, self.cm.prob_cbf)
+        if not coded_block_flag:
+            return
+
+        last_scan_index = np.max(np.nonzero(qIdxList))
+        self.expGolombProbAdapted(last_scan_index, self.cm.prob_last_prefix)
+
+        self.writeQIndex(qIdxList[last_scan_index], last_scan_index, isLast=True)
+        for k in range(last_scan_index - 1, -1, -1):
+            self.writeQIndex(qIdxList[k], k)
+
+    def write_block_intra_pic(self, qIdxBlock, prediction_mode):
+        """ Writes all values sequential to the bitstream
+        """
+        # write side information
         if prediction_mode == PredictionMode.PLANAR_PREDICTION:
             self.arith_enc.encodeBin(0, self.cm.prediction_mode_bin1)
         elif prediction_mode == PredictionMode.DC_PREDICTION:
@@ -114,28 +130,41 @@ class EntropyEncoder:
             self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin2)
             self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin3)
 
-        coded_block_flag = np.any(qIdxList != 0)
-        self.arith_enc.encodeBin(coded_block_flag, self.cm.prob_cbf)
-        if not coded_block_flag:
-            return
+        # write quantization indexes
+        self.write_qindexes_block(qIdxBlock)
 
-        last_scan_index = np.max(np.nonzero(qIdxList))
-        self.expGolombProbAdapted(last_scan_index, self.cm.prob_last_prefix)
+    def write_block_inter_pic(self, qIdxBlock):
+        """ Writes all values sequential to the bitstream
+        """
+        # write side information: later
 
-        self.writeQIndex(qIdxList[last_scan_index], last_scan_index, isLast=True)
-        for k in range(last_scan_index - 1, -1, -1):
-            self.writeQIndex(qIdxList[k], k)
+        # write quantization indexes
+        self.write_qindexes_block(qIdxBlock)
 
     # placeholder: will make sense for arithmetic coding
     def terminate(self):
         self.arith_enc.finalize()
         return True
 
-    # similar to writeQindexBlock but estimation only
-    def estBits(self, predMode, qIdxBlock):
+    # add bits for quantization indexes (both intra and inter pictures)
+    def add_bits_qindex_block(self, qIdxBlock):
+        qIdxList = qIdxBlock.ravel()
+        coded_block_flag = np.any(qIdxList != 0)
+        self.est_bits += self.cm.prob_cbf.estBits(coded_block_flag)
+        if not coded_block_flag:
+            return
+
+        last_scan_index = np.max(np.nonzero(qIdxList))
+        self.expGolombProbAdapted(last_scan_index, self.cm.prob_last_prefix, estimation=True)
+
+        self.getEstimateBits(qIdxList[last_scan_index], last_scan_index, isLast=True)
+        for k in range(last_scan_index - 1, -1, -1):
+            self.getEstimateBits(qIdxList[k], k)
+
+    # similar to write_block_intra_pic but estimation only
+    def est_block_bits_intra_pic(self, predMode, qIdxBlock):
         self.est_bits = 0
         org_probs = copy.deepcopy(self.cm)
-        qIdxList = qIdxBlock.ravel()
 
         if predMode == PredictionMode.PLANAR_PREDICTION:
             self.est_bits += self.cm.prediction_mode_bin1.estBits(0)
@@ -151,18 +180,21 @@ class EntropyEncoder:
             self.est_bits += self.cm.prediction_mode_bin2.estBits(1)
             self.est_bits += self.cm.prediction_mode_bin3.estBits(1)
 
-        coded_block_flag = np.any(qIdxList != 0)
-        self.est_bits += self.cm.prob_cbf.estBits(coded_block_flag)
-        if not coded_block_flag:
-            self.cm = org_probs
-            return self.est_bits
+        # quant indexes
+        self.add_bits_qindex_block(qIdxBlock)
 
-        last_scan_index = np.max(np.nonzero(qIdxList))
-        self.expGolombProbAdapted(last_scan_index, self.cm.prob_last_prefix, estimation=True)
+        self.cm = org_probs
+        return self.est_bits
 
-        self.getEstimateBits(qIdxList[last_scan_index], last_scan_index, isLast=True)
-        for k in range(last_scan_index - 1, -1, -1):
-            self.getEstimateBits(qIdxList[k], k)
+    # similar to write_block_inter_pic but estimation only
+    def est_block_bits_inter_pic(self, qIdxBlock):
+        self.est_bits = 0
+        org_probs = copy.deepcopy(self.cm)
+
+        # side info: later
+
+        # quant indexes
+        self.add_bits_qindex_block(qIdxBlock)
 
         self.cm = org_probs
         return self.est_bits

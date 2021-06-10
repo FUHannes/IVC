@@ -46,9 +46,9 @@ class Decoder:
         self.image_array = []
         self.transformation = Transformation(self.block_size)
 
-    def decode_block(self, x: int, y: int):
+    def decode_block_intra_pic(self, x: int, y: int):
         # entropy decoding (EntropyDecoder)
-        ent_dec_block, prediction_mode = self.ent_dec.readQIndexBlock()
+        ent_dec_block, prediction_mode = self.ent_dec.read_block_intra_pic()
         # scan unpacking
         
         if prediction_mode == PredictionMode.DC_PREDICTION or prediction_mode == PredictionMode.PLANAR_PREDICTION:
@@ -67,6 +67,22 @@ class Decoder:
         # clipping (0,255) and store to image
         self.image[y:y + self.block_size, x:x + self.block_size] = np.clip(recBlock, 0, 255).astype('uint8')
 
+    def decode_block_inter_pic(self, x: int, y: int):
+        # entropy decoding (EntropyDecoder)
+        ent_dec_block = self.ent_dec.read_block_inter_pic()
+        # reverse scanning
+        ordered_block = de_diagonalize(ent_dec_block)
+        # de-quantization
+        recBlock = ordered_block * self.qs
+        # idct
+        recBlock = self.transformation.backward_transform(recBlock, PredictionMode.DC_PREDICTION) # set predMode=DC for correct transform
+
+        # Inter prediction
+        recBlock += self._inter_prediction(x, y)
+
+        # clipping (0,255) and store to image
+        self.image[y:y + self.block_size, x:x + self.block_size] = np.clip(recBlock, 0, 255).astype('uint8')
+
     # opening and writing a binary file
     def write_out(self):
         out_file = open(self.output_path, "wb")
@@ -79,17 +95,18 @@ class Decoder:
         out_file.close()
         return True
 
-    def decode_next_frame(self):
+    def decode_next_frame_intra(self):
         self.intra_pred_calc = IntraPredictionCalculator(self.image, self.block_size)
 
         # start new arithmetic codeword
         self.ent_dec = EntropyDecoder(self.bitstream, self.block_size)
 
+
         # decode blocks
         for yi in range(0, self.image_height + self.pad_height, self.block_size):
             for xi in range(0, self.image_width + self.pad_width, self.block_size):
-                self.decode_block(xi, yi)
-            
+                self.decode_block_intra_pic(xi, yi)
+
         # terminate arithmatic codeword and check whether everything is ok so far
         is_ok = self.ent_dec.terminate()
         if not is_ok:
@@ -99,7 +116,32 @@ class Decoder:
         self.image = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],
                                dtype=np.uint8)
 
+    def decode_next_frame_inter(self):
+        self.intra_pred_calc = IntraPredictionCalculator(self.image, self.block_size)
+
+        # start new arithmetic codeword
+        self.ent_dec = EntropyDecoder(self.bitstream, self.block_size)
+
+        # decode blocks
+        for yi in range(0, self.image_height + self.pad_height, self.block_size):
+            for xi in range(0, self.image_width + self.pad_width, self.block_size):
+                self.decode_block_inter_pic(xi, yi)
+
+        # terminate arithmatic codeword and check whether everything is ok so far
+        is_ok = self.ent_dec.terminate()
+        if not is_ok:
+            raise Exception('Arithmetic codeword not correctly terminated at end of frame')
+
+        self.image_array.append(self.image)
+        self.image = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],
+                               dtype=np.uint8)
+
+
     def decode_all_frames(self):
+        self.decode_next_frame_intra()
         while not self.bitstream.is_EOF():
-            self.decode_next_frame()
+            self.decode_next_frame_inter()
         self.write_out()
+
+    def _inter_prediction(self, x, y):
+        return self.image_array[-1][y:y + self.block_size, x:x + self.block_size]
