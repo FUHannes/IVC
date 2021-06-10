@@ -99,6 +99,9 @@ class Encoder:
         # plt.imshow(image)
         # plt.show()
 
+    def _simple_inter_prediction(self, x, y):
+        return self.image_reconstructed_array[-1][y:y + self.block_size, x:x + self.block_size]
+
     # Gets an image and return an encoded bitstream.
     def encode_image(self):
         self._read_image()
@@ -117,10 +120,6 @@ class Encoder:
 
     # If you change this methods pay attention because is used in both encode_image and encode_video() methods
     def encode_frame(self, show_frame_progress=False):
-
-        if len(self.image_reconstructed_array) != 0:
-            # self.image = np.subtract(self.image, self.image_reconstructed_array[-1])//2 + 128
-            self.image = np.subtract(self.image, self.image_reconstructed_array[-1])
 
         # add padding
         self._add_padding()
@@ -151,7 +150,7 @@ class Encoder:
                 optimal_pred_mode = min_cost_mode[1]
                 
                 # encoding using selected mode
-                self.encode_block(xi, yi, optimal_pred_mode)
+                self.encode_block_inter_intra(xi, yi, optimal_pred_mode)
         
         if show_frame_progress:
             progress_bar.close()
@@ -187,9 +186,7 @@ class Encoder:
         # invoke prediction function (see 4.3 DC prediction)
         recBlock += pred_block
         # if len(self.image_reconstructed_array) != 0:
-        #     recBlock = np.subtract(recBlock, self.image_reconstructed_array[-1][y:y + self.block_size, x:x + self.block_size])
-
-
+        #     recBlock += self._simple_inter_prediction(x, y)
 
         recBlock = np.clip(recBlock, 0, 255).astype('uint8')
 
@@ -227,6 +224,41 @@ class Encoder:
         # actual entropy encoding
         self.entropyEncoder.writeQIndexBlock(scanned_block, pred_mode)
 
+    # encode block of current picture
+    def encode_block_inter_intra(self, x: int, y: int, pred_mode: PredictionMode):
+        # accessor for current block
+        orgBlock = self.image[y:y + self.block_size, x:x + self.block_size]
+
+        # prediction
+        if len(self.image_reconstructed_array) != 0:
+            # Inter prediction
+            predBlock = self._simple_inter_prediction(x, y)
+        else:
+            # Intra prediction
+            predBlock = self.intra_pred_calc.get_prediction(x, y, pred_mode)
+
+        predError = orgBlock.astype('int') - predBlock
+        # dct
+        transCoeff = self.transformation.forward_transform(predError, pred_mode)
+        # quantization
+        qIdxBlock: np.ndarray = (np.sign(transCoeff) * np.floor((np.abs(transCoeff) / self.qs) + 0.4)).astype('int')
+        # reconstruction
+        self.reconstruct_block(predBlock, qIdxBlock, x, y, pred_mode)
+
+        if pred_mode == PredictionMode.PLANAR_PREDICTION or pred_mode == PredictionMode.DC_PREDICTION:
+            # diagonal scan
+            scanned_block = sort_diagonal(qIdxBlock)
+        elif pred_mode == PredictionMode.HORIZONTAL_PREDICTION:
+            # vertical scan: Transposed block
+            scanned_block = qIdxBlock.T
+        elif pred_mode == PredictionMode.VERTICAL_PREDICTION:
+            # horizontal scan: unchanged block
+            scanned_block = qIdxBlock
+
+        # Sum estimated bits per block
+        self.est_bits += self.entropyEncoder.estBits(pred_mode, scanned_block)
+        # actual entropy encoding
+        self.entropyEncoder.writeQIndexBlock(scanned_block, pred_mode)
 
     # Calculate lagrangian cost for given block and prediction mode.
     def test_encode_block(self, x: int, y: int, pred_mode: PredictionMode, lagrange_multiplier):

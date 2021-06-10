@@ -67,6 +67,33 @@ class Decoder:
         # clipping (0,255) and store to image
         self.image[y:y + self.block_size, x:x + self.block_size] = np.clip(recBlock, 0, 255).astype('uint8')
 
+    def decode_block_inter_intra(self, x: int, y: int):
+        # entropy decoding (EntropyDecoder)
+        ent_dec_block, prediction_mode = self.ent_dec.readQIndexBlock()
+        # scan unpacking
+
+        if prediction_mode == PredictionMode.DC_PREDICTION or prediction_mode == PredictionMode.PLANAR_PREDICTION:
+            ordered_block = de_diagonalize(ent_dec_block)
+        elif prediction_mode == PredictionMode.HORIZONTAL_PREDICTION:
+            ordered_block = ent_dec_block.T
+        elif prediction_mode == PredictionMode.VERTICAL_PREDICTION:
+            ordered_block = ent_dec_block
+
+        # de-quantization
+        recBlock = ordered_block * self.qs
+        # idct
+        recBlock = self.transformation.backward_transform(recBlock, prediction_mode)
+
+        # adding prediction
+        if len(self.image_array) != 0:
+            # Inter prediction
+            recBlock += self._simple_inter_prediction(x, y)
+        else:
+            # Intra prediction
+            recBlock += self.intra_pred_calc.get_prediction(x, y, prediction_mode)
+        # clipping (0,255) and store to image
+        self.image[y:y + self.block_size, x:x + self.block_size] = np.clip(recBlock, 0, 255).astype('uint8')
+
     # opening and writing a binary file
     def write_out(self):
         out_file = open(self.output_path, "wb")
@@ -89,16 +116,12 @@ class Decoder:
         # decode blocks
         for yi in range(0, self.image_height + self.pad_height, self.block_size):
             for xi in range(0, self.image_width + self.pad_width, self.block_size):
-                self.decode_block(xi, yi)
+                self.decode_block_inter_intra(xi, yi)
 
         # terminate arithmatic codeword and check whether everything is ok so far
         is_ok = self.ent_dec.terminate()
         if not is_ok:
             raise Exception('Arithmetic codeword not correctly terminated at end of frame')
-
-        if len(self.image_array) != 0:
-            # self.image = (np.add(self.image, self.image_array[-1])-128)*2
-            self.image = np.add(self.image, self.image_array[-1])
 
         self.image_array.append(self.image)
         self.image = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],
@@ -108,3 +131,6 @@ class Decoder:
         while not self.bitstream.is_EOF():
             self.decode_next_frame()
         self.write_out()
+
+    def _simple_inter_prediction(self, x, y):
+        return self.image_array[-1][y:y + self.block_size, x:x + self.block_size]
