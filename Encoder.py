@@ -10,7 +10,7 @@ from dct import Transformation
 
 
 # read PGM image
-def _read_image(input_path):
+def read_image(input_path):
     with open(input_path, 'rb') as file:
         header = file.readline()
         if header != b'P5\n':
@@ -80,25 +80,14 @@ class Encoder:
         outputBitstream.addBits(self.qp, 8)
         return outputBitstream
 
-    # read image
-    def _read_image(self, frame = None):
-        if frame is not None:
-            self.image=frame
-        else:
-            self.image = _read_image(self.input_path)
-
-        self.image_height = self.image.shape[0]
-        self.image_width = self.image.shape[1]
+    def set_image_size(self, width, height):
+        self.image_height = height
+        self.image_width = width
         self.pad_height = self.block_size - self.image_height % self.block_size if self.image_height % self.block_size != 0 else 0
         self.pad_width = self.block_size - self.image_width % self.block_size if self.image_width % self.block_size != 0 else 0
 
-
     def _add_padding(self):
         self.image = np.pad(self.image, ((0, self.pad_height), (0, self.pad_width)), "edge")
-
-        # for testing (include matplotlib)
-        # plt.imshow(image)
-        # plt.show()
 
     # motion-compensated prediction (at the moment, only frame difference prediction)
     def _inter_prediction(self, x, y):
@@ -106,7 +95,9 @@ class Encoder:
 
     # Gets an image and return an encoded bitstream.
     def encode_image(self):
-        self._read_image()
+        self.image = read_image(self.input_path)
+        self.set_image_size(width=self.image.shape[1], height=self.image.shape[0])
+
         # open bitstream and write header
         self.outputBitstream = self.init_obitstream(self.image_height, self.image_width, self.output_path)
 
@@ -118,6 +109,31 @@ class Encoder:
         print(f'# of bits in bitstream without header {self.outputBitstream.bits_written - 56}')
         if self.reconstruction_path:
             self.image_reconstructed_array.append(self.image_reconstructed)
+            self.write_out()
+
+    def encode_video(self, width, height, n_frames):
+        self.raw_video = True
+        video = read_video(self.input_path, width, height, n_frames)
+        self.set_image_size(width, height)
+
+        # open bitstream and write header
+        self.outputBitstream = self.init_obitstream(height, width, self.output_path)
+
+        is_first_frame = True
+        for frame in tqdm(video):
+            self.image=frame
+            if not is_first_frame:
+                self.encode_frame_inter()
+            else:
+                self.encode_frame_intra()
+                is_first_frame = False
+            self.image_reconstructed_array.append(self.image_reconstructed)
+
+        # terminate bitstream
+        self.outputBitstream.terminate()
+        print(f'Estimated # of bits {self.est_bits}')
+        print(f'# of bits in bitstream without header {self.outputBitstream.bits_written - 56}')
+        if self.reconstruction_path:
             self.write_out()
 
     # If you change this methods pay attention because is used in both encode_image and encode_video() methods
@@ -189,30 +205,6 @@ class Encoder:
 
         # terminate arithmetic codeword (but keep output bitstream alive)
         self.entropyEncoder.terminate()
-
-    def encode_video(self, width, height, n_frames):
-        self.raw_video = True
-        video = read_video(self.input_path, width, height, n_frames)
-
-        # open bitstream and write header
-        self.outputBitstream = self.init_obitstream(height, width, self.output_path)
-
-        is_first_frame = True
-        for frame in tqdm(video):
-            self._read_image(frame)
-            if not is_first_frame:
-                self.encode_frame_inter()
-            else:
-                self.encode_frame_intra()
-                is_first_frame = False
-            self.image_reconstructed_array.append(self.image_reconstructed)
-
-        # terminate bitstream
-        self.outputBitstream.terminate()
-        print(f'Estimated # of bits {self.est_bits}')
-        print(f'# of bits in bitstream without header {self.outputBitstream.bits_written - 56}')
-        if self.reconstruction_path:
-            self.write_out()
 
     def reconstruct_block(self, pred_block, q_idx_block, x, y, prediction_mode, update_rec_image=True):
         # reconstruct transform coefficients from quantization indexes
