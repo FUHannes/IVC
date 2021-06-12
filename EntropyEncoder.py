@@ -133,7 +133,7 @@ class EntropyEncoder:
         # write quantization indexes
         self.write_qindexes_block(qIdxBlock)
 
-    def write_block_inter_pic(self, qIdxBlock):
+    def write_block_inter_pic(self, qIdxBlock, mx: int, my: int):
         """ Writes all values sequential to the bitstream
         """
         # write side information: later

@@ -43,7 +43,9 @@ class EntropyDecoder:
         # read quantization indexes
         qidx_block = self.read_qindexes_block()
 
-        return qidx_block
+        mx, my = 0, 0
+
+        return qidx_block, mx, my
     
     def read_qindexes_block(self):
         # loop over all positions inside NxN block
