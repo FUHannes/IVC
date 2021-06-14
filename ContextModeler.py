@@ -18,6 +18,11 @@ class ContextModeler:
         self.models_gt1_flag = self.initProbModels(3)
         self.models_level_prefix = self.initProbModels(3)
 
+        self.prob_mx_abs_greater0_flag = ProbModel()
+        self.prob_mx = ProbModel()
+        self.prob_my_abs_greater0_flag = ProbModel()
+        self.prob_my = ProbModel()
+
     def initProbModels(self, num):
         models = []
         for _ in range(num):
