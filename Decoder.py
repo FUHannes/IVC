@@ -21,12 +21,11 @@ def de_diagonalize(arr: np.ndarray) -> np.ndarray:
         y -= 1
         if y < 0 or x >= wx:
             y = min(x, wx - 1)
-            
+
             if x >= wx:
                 x_start += 1
             x = x_start
     return res
-
 
 
 class Decoder:
@@ -46,11 +45,21 @@ class Decoder:
         self.image_array = []
         self.transformation = Transformation(self.block_size)
 
-    def decode_block_intra_pic(self, x: int, y: int):
+    def decode_block(self, x: int, y: int, is_first_frame: bool):
+        if is_first_frame:
+            self.decode_block_intra_pic(x, y, is_first_frame)
+        else:
+            inter_flag = self.ent_dec.read_inter_flag()
+            if inter_flag:
+                self.decode_block_inter_pic(x, y)
+            else:
+                self.decode_block_intra_pic(x, y, is_first_frame)
+
+    def decode_block_intra_pic(self, x: int, y: int, is_first_frame: bool):
         # entropy decoding (EntropyDecoder)
-        ent_dec_block, prediction_mode = self.ent_dec.read_block_intra_pic()
+        ent_dec_block, prediction_mode = self.ent_dec.read_block_intra_pic(is_first_frame)
         # scan unpacking
-        
+
         if prediction_mode == PredictionMode.DC_PREDICTION or prediction_mode == PredictionMode.PLANAR_PREDICTION:
             ordered_block = de_diagonalize(ent_dec_block)
         elif prediction_mode == PredictionMode.HORIZONTAL_PREDICTION:
@@ -69,7 +78,7 @@ class Decoder:
 
     def decode_block_inter_pic(self, x: int, y: int):
         # entropy decoding (EntropyDecoder)
-        ent_dec_block, inter_flag, mx, my = self.ent_dec.read_block_inter_pic()
+        ent_dec_block, mx, my = self.ent_dec.read_block_inter_pic()
         # reverse scanning
         ordered_block = de_diagonalize(ent_dec_block)
         # de-quantization
@@ -99,17 +108,17 @@ class Decoder:
         out_file.close()
         return True
 
-    def decode_next_frame_intra(self):
+    def decode_next_frame(self):
         self.intra_pred_calc = IntraPredictionCalculator(self.image, self.block_size)
 
         # start new arithmetic codeword
         self.ent_dec = EntropyDecoder(self.bitstream, self.block_size)
 
-
         # decode blocks
+        is_first_frame = self.image_array == []
         for yi in range(0, self.image_height + self.pad_height, self.block_size):
             for xi in range(0, self.image_width + self.pad_width, self.block_size):
-                self.decode_block_intra_pic(xi, yi)
+                self.decode_block(xi, yi, is_first_frame)
 
         # terminate arithmatic codeword and check whether everything is ok so far
         is_ok = self.ent_dec.terminate()
@@ -119,32 +128,10 @@ class Decoder:
         self.image_array.append(self.image)
         self.image = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],
                                dtype=np.uint8)
-
-    def decode_next_frame_inter(self):
-        self.intra_pred_calc = IntraPredictionCalculator(self.image, self.block_size)
-
-        # start new arithmetic codeword
-        self.ent_dec = EntropyDecoder(self.bitstream, self.block_size)
-
-        # decode blocks
-        for yi in range(0, self.image_height + self.pad_height, self.block_size):
-            for xi in range(0, self.image_width + self.pad_width, self.block_size):
-                self.decode_block_inter_pic(xi, yi)
-
-        # terminate arithmatic codeword and check whether everything is ok so far
-        is_ok = self.ent_dec.terminate()
-        if not is_ok:
-            raise Exception('Arithmetic codeword not correctly terminated at end of frame')
-
-        self.image_array.append(self.image)
-        self.image = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],
-                               dtype=np.uint8)
-
 
     def decode_all_frames(self):
-        self.decode_next_frame_intra()
         while not self.bitstream.is_EOF():
-            self.decode_next_frame_inter()
+            self.decode_next_frame()
         self.write_out()
 
     def _inter_prediction(self, x, y):

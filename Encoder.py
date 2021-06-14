@@ -101,7 +101,7 @@ class Encoder:
         # open bitstream and write header
         self.outputBitstream = self.init_obitstream(self.image_height, self.image_width, self.output_path)
 
-        self.encode_frame_intra(True)
+        self.encode_frame_intra(show_frame_progress=True)
 
         # terminate bitstream
         self.outputBitstream.terminate()
@@ -137,8 +137,8 @@ class Encoder:
             self.write_out()
 
     # If you change this methods pay attention because is used in both encode_image and encode_video() methods
+    # This method should be called for the first frame only
     def encode_frame_intra(self, show_frame_progress=False):
-
         # add padding
         self._add_padding()
         self.image_reconstructed = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],
@@ -160,23 +160,24 @@ class Encoder:
             for xi in range(0, self.image_width + self.pad_width, self.block_size):
                 if show_frame_progress:
                     progress_bar.update()
+
                 # mode decision
                 cost_mode_tuples = []
                 for pred_mode in PredictionMode:
-                    cost_mode_tuples.append((self.test_encode_block_intra_pic(xi, yi, pred_mode, lagrange_multiplier), pred_mode))
+                    cost_mode_tuples.append((self.test_encode_block_intra_pic(xi, yi, pred_mode, lagrange_multiplier, is_first_frame=True), pred_mode))
                 min_cost_mode = min(cost_mode_tuples, key = lambda t: t[0])
                 optimal_pred_mode = min_cost_mode[1]
-                
+
                 # encoding using selected mode
-                self.encode_block_intra_pic(xi, yi, optimal_pred_mode)
-        
+                self.encode_block_intra_pic(xi, yi, optimal_pred_mode, is_first_frame=True)
+
         if show_frame_progress:
             progress_bar.close()
 
         # terminate arithmetic codeword (but keep output bitstream alive)
         self.entropyEncoder.terminate()
 
-    # If you change this methods pay attention because is used in both encode_image and encode_video() methods
+    # This method should be called for all frames except the first one
     def encode_frame_inter(self):
         # add padding
         self._add_padding()
@@ -197,11 +198,14 @@ class Encoder:
                 max_motion = self.block_size
                 mx = random.randint(-max_motion, max_motion)
                 my = random.randint(-max_motion, max_motion)
-                
-                # mode decision: later
 
-                # encoding using selected mode
-                self.encode_block_inter_pic(xi, yi, mx, my)
+                # mode decision between inter and dc mode
+                inter_mode_cost = self.test_encode_block_inter_pic(xi, yi, mx, my, lagrange_multiplier)
+                dc_mode_cost = self.test_encode_block_intra_pic(xi, yi, PredictionMode.DC_PREDICTION, lagrange_multiplier, is_first_frame=False)
+                if inter_mode_cost < dc_mode_cost:
+                    self.encode_block_intra_pic(xi, yi, PredictionMode.DC_PREDICTION, is_first_frame=False)
+                else:
+                    self.encode_block_inter_pic(xi, yi, mx, my)
 
         # terminate arithmetic codeword (but keep output bitstream alive)
         self.entropyEncoder.terminate()
@@ -222,7 +226,7 @@ class Encoder:
         return recBlock
 
     # encode block of current picture
-    def encode_block_intra_pic(self, x: int, y: int, pred_mode: PredictionMode):
+    def encode_block_intra_pic(self, x: int, y: int, pred_mode: PredictionMode, is_first_frame: bool):
         # accessor for current block
         orgBlock = self.image[y:y + self.block_size, x:x + self.block_size]
         # prediction
@@ -234,7 +238,7 @@ class Encoder:
         qIdxBlock: np.ndarray = (np.sign(transCoeff) * np.floor((np.abs(transCoeff) / self.qs) + 0.4)).astype('int')
         # reconstruction
         self.reconstruct_block(predBlock, qIdxBlock, x, y, pred_mode)
-        
+
         if pred_mode == PredictionMode.PLANAR_PREDICTION or pred_mode == PredictionMode.DC_PREDICTION:
             # diagonal scan
             scanned_block = sort_diagonal(qIdxBlock)
@@ -244,11 +248,11 @@ class Encoder:
         elif pred_mode == PredictionMode.VERTICAL_PREDICTION:
             # horizontal scan: unchanged block
             scanned_block = qIdxBlock
-         
+
         # Sum estimated bits per block
-        self.est_bits += self.entropyEncoder.est_block_bits_intra_pic(pred_mode, scanned_block)
+        self.est_bits += self.entropyEncoder.est_block_bits_intra_pic(pred_mode, scanned_block, is_first_frame)
         # actual entropy encoding
-        self.entropyEncoder.write_block_intra_pic(scanned_block, pred_mode)
+        self.entropyEncoder.write_block_intra_pic(scanned_block, pred_mode, is_first_frame)
 
     # encode block of current picture
     def encode_block_inter_pic(self, x: int, y: int, mx: int, my: int):
@@ -258,7 +262,7 @@ class Encoder:
         # clipping mvec into image dimensions (+ padding border)
         mx = max(-x, min(mx, self.image_width + self.pad_width - (x + self.block_size)))
         my = max(-y, min(my, self.image_height + self.pad_height - (y + self.block_size)))
-        
+
         # Inter prediction
         predBlock = self._inter_prediction(x + mx, y + my)
 
@@ -277,7 +281,7 @@ class Encoder:
         self.entropyEncoder.write_block_inter_pic(scanned_block, mx, my)
 
     # Calculate lagrangian cost for given block and prediction mode.
-    def test_encode_block_intra_pic(self, x: int, y: int, pred_mode: PredictionMode, lagrange_multiplier):
+    def test_encode_block_intra_pic(self, x: int, y: int, pred_mode: PredictionMode, lagrange_multiplier, is_first_frame):
         # Accessor for current block.
         org_block = self.image[y:y + self.block_size, x:x + self.block_size]
 
@@ -304,7 +308,7 @@ class Encoder:
             # horizontal scan: unchanged block
             scanned_block = q_idx_block
 
-        bitrate_estimation = self.entropyEncoder.est_block_bits_intra_pic(pred_mode, scanned_block)
+        bitrate_estimation = self.entropyEncoder.est_block_bits_intra_pic(pred_mode, scanned_block, is_first_frame)
 
         # Return Lagrangian cost.
         return distortion + lagrange_multiplier * bitrate_estimation
@@ -339,7 +343,6 @@ class Encoder:
         # Return Lagrangian cost.
         return distortion + lagrange_multiplier * bitrate_estimation
 
-
     # opening and writing a binary file
     def write_out(self):
         out_file = open(self.reconstruction_path, "wb")
@@ -353,6 +356,3 @@ class Encoder:
             out_file.write(image_reconstructed.ravel().tobytes())
         out_file.close()
         return True
-
-
-

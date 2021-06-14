@@ -113,23 +113,26 @@ class EntropyEncoder:
         for k in range(last_scan_index - 1, -1, -1):
             self.writeQIndex(qIdxList[k], k)
 
-    def write_block_intra_pic(self, qIdxBlock, prediction_mode):
+    def write_block_intra_pic(self, qIdxBlock, prediction_mode, is_first_frame):
         """ Writes all values sequential to the bitstream
         """
         # write side information
-        if prediction_mode == PredictionMode.PLANAR_PREDICTION:
-            self.arith_enc.encodeBin(0, self.cm.prediction_mode_bin1)
-        elif prediction_mode == PredictionMode.DC_PREDICTION:
-            self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin1)
-            self.arith_enc.encodeBin(0, self.cm.prediction_mode_bin2)
-        elif prediction_mode == PredictionMode.HORIZONTAL_PREDICTION:
-            self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin1)
-            self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin2)
-            self.arith_enc.encodeBin(0, self.cm.prediction_mode_bin3)
-        elif prediction_mode == PredictionMode.VERTICAL_PREDICTION:
-            self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin1)
-            self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin2)
-            self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin3)
+        if is_first_frame:
+            if prediction_mode == PredictionMode.PLANAR_PREDICTION:
+                self.arith_enc.encodeBin(0, self.cm.prediction_mode_bin1)
+            elif prediction_mode == PredictionMode.DC_PREDICTION:
+                self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin1)
+                self.arith_enc.encodeBin(0, self.cm.prediction_mode_bin2)
+            elif prediction_mode == PredictionMode.HORIZONTAL_PREDICTION:
+                self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin1)
+                self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin2)
+                self.arith_enc.encodeBin(0, self.cm.prediction_mode_bin3)
+            elif prediction_mode == PredictionMode.VERTICAL_PREDICTION:
+                self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin1)
+                self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin2)
+                self.arith_enc.encodeBin(1, self.cm.prediction_mode_bin3)
+        else:
+            self.arith_enc.encodeBin(0, self.cm.prediction_inter_flag)
 
         # write quantization indexes
         self.write_qindexes_block(qIdxBlock)
@@ -137,26 +140,24 @@ class EntropyEncoder:
     def write_block_inter_pic(self, qIdxBlock, mx: int, my: int):
         """ Writes all values sequential to the bitstream
         """
-        # TODO of exercise 8.3
-        inter_flag = 1
+        # write side information
+        self.arith_enc.encodeBin(1, self.cm.prediction_inter_flag)
 
-        if inter_flag == 1:
+        mx_abs_greater0_flag = abs(mx) > 0
+        my_abs_greater0_flag = abs(my) > 0
 
-            mx_abs_greater0_flag = abs(mx) > 0
-            my_abs_greater0_flag = abs(my) > 0
+        mx_sign = mx > 0
+        my_sign = my > 0
 
-            mx_sign = mx > 0
-            my_sign = my > 0
+        self.arith_enc.encodeBin(mx_abs_greater0_flag, self.cm.prob_mx_abs_greater0_flag)
+        if mx_abs_greater0_flag:
+            self.expGolombProbAdapted(abs(mx), self.cm.prob_mx)
+            self.arith_enc.encodeBinEP(mx_sign)
 
-            self.arith_enc.encodeBin(mx_abs_greater0_flag, self.cm.prob_mx_abs_greater0_flag)
-            if mx_abs_greater0_flag:
-                self.expGolombProbAdapted(abs(mx), self.cm.prob_mx)
-                self.arith_enc.encodeBinEP(mx_sign)
-
-            self.arith_enc.encodeBin(my_abs_greater0_flag, self.cm.prob_my_abs_greater0_flag)
-            if my_abs_greater0_flag:
-                self.expGolombProbAdapted(abs(my), self.cm.prob_my)
-                self.arith_enc.encodeBinEP(my_sign)
+        self.arith_enc.encodeBin(my_abs_greater0_flag, self.cm.prob_my_abs_greater0_flag)
+        if my_abs_greater0_flag:
+            self.expGolombProbAdapted(abs(my), self.cm.prob_my)
+            self.arith_enc.encodeBinEP(my_sign)
 
         # write quantization indexes
         self.write_qindexes_block(qIdxBlock)
@@ -182,23 +183,26 @@ class EntropyEncoder:
             self.getEstimateBits(qIdxList[k], k)
 
     # similar to write_block_intra_pic but estimation only
-    def est_block_bits_intra_pic(self, predMode, qIdxBlock):
+    def est_block_bits_intra_pic(self, predMode, qIdxBlock, is_first_frame):
         self.est_bits = 0
         org_probs = copy.deepcopy(self.cm)
 
-        if predMode == PredictionMode.PLANAR_PREDICTION:
-            self.est_bits += self.cm.prediction_mode_bin1.estBits(0)
-        elif predMode == PredictionMode.DC_PREDICTION:
-            self.est_bits += self.cm.prediction_mode_bin1.estBits(1)
-            self.est_bits += self.cm.prediction_mode_bin2.estBits(0)
-        elif predMode == PredictionMode.HORIZONTAL_PREDICTION:
-            self.est_bits += self.cm.prediction_mode_bin1.estBits(1)
-            self.est_bits += self.cm.prediction_mode_bin2.estBits(1)
-            self.est_bits += self.cm.prediction_mode_bin3.estBits(0)
-        elif predMode == PredictionMode.VERTICAL_PREDICTION:
-            self.est_bits += self.cm.prediction_mode_bin1.estBits(1)
-            self.est_bits += self.cm.prediction_mode_bin2.estBits(1)
-            self.est_bits += self.cm.prediction_mode_bin3.estBits(1)
+        if is_first_frame:
+            if predMode == PredictionMode.PLANAR_PREDICTION:
+                self.est_bits += self.cm.prediction_mode_bin1.estBits(0)
+            elif predMode == PredictionMode.DC_PREDICTION:
+                self.est_bits += self.cm.prediction_mode_bin1.estBits(1)
+                self.est_bits += self.cm.prediction_mode_bin2.estBits(0)
+            elif predMode == PredictionMode.HORIZONTAL_PREDICTION:
+                self.est_bits += self.cm.prediction_mode_bin1.estBits(1)
+                self.est_bits += self.cm.prediction_mode_bin2.estBits(1)
+                self.est_bits += self.cm.prediction_mode_bin3.estBits(0)
+            elif predMode == PredictionMode.VERTICAL_PREDICTION:
+                self.est_bits += self.cm.prediction_mode_bin1.estBits(1)
+                self.est_bits += self.cm.prediction_mode_bin2.estBits(1)
+                self.est_bits += self.cm.prediction_mode_bin3.estBits(1)
+        else:
+            self.est_bits += self.cm.prediction_inter_flag.estBits(0)
 
         # quant indexes
         self.add_bits_qindex_block(qIdxBlock)
@@ -211,23 +215,21 @@ class EntropyEncoder:
         self.est_bits = 0
         org_probs = copy.deepcopy(self.cm)
 
-        # TODO of exercise 8.3
-        inter_flag = 1
+        # side info
+        self.est_bits += self.cm.prediction_inter_flag.estBits(1)
 
-        if inter_flag == 1:
+        mx_abs_greater0_flag = abs(mx) > 0
+        my_abs_greater0_flag = abs(my) > 0
 
-            mx_abs_greater0_flag = abs(mx) > 0
-            my_abs_greater0_flag = abs(my) > 0
+        self.est_bits += self.cm.prob_mx_abs_greater0_flag.estBits(mx_abs_greater0_flag)
+        if mx_abs_greater0_flag:
+            self.expGolombProbAdapted(abs(mx), self.cm.prob_mx, estimation=True)
+            self.est_bits += 1
 
-            self.est_bits += self.cm.prob_mx_abs_greater0_flag.estBits(mx_abs_greater0_flag)
-            if mx_abs_greater0_flag:
-                self.expGolombProbAdapted(abs(mx), self.cm.prob_mx, estimation=True)
-                self.est_bits += 1
-
-            self.est_bits += self.cm.prob_my_abs_greater0_flag.estBits(my_abs_greater0_flag)
-            if my_abs_greater0_flag:
-                self.expGolombProbAdapted(abs(my), self.cm.prob_my, estimation=True)
-                self.est_bits += 1
+        self.est_bits += self.cm.prob_my_abs_greater0_flag.estBits(my_abs_greater0_flag)
+        if my_abs_greater0_flag:
+            self.expGolombProbAdapted(abs(my), self.cm.prob_my, estimation=True)
+            self.est_bits += 1
 
         # quant indexes
         self.add_bits_qindex_block(qIdxBlock)
