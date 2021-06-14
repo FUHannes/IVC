@@ -69,7 +69,7 @@ class Decoder:
 
     def decode_block_inter_pic(self, x: int, y: int):
         # entropy decoding (EntropyDecoder)
-        ent_dec_block = self.ent_dec.read_block_inter_pic()
+        ent_dec_block, mx, my = self.ent_dec.read_block_inter_pic()
         # reverse scanning
         ordered_block = de_diagonalize(ent_dec_block)
         # de-quantization
@@ -77,8 +77,13 @@ class Decoder:
         # idct
         recBlock = self.transformation.backward_transform(recBlock, PredictionMode.DC_PREDICTION) # set predMode=DC for correct transform
 
+        # testing motion vector, remove when is transmitted in bitstream
+        mx, my = 2, 2
+        mx = max(-x, min(mx, self.image_width + self.pad_width - (x + self.block_size)))
+        my = max(-y, min(my, self.image_height + self.pad_height - (y + self.block_size)))
+
         # Inter prediction
-        recBlock += self._inter_prediction(x, y)
+        recBlock += self._inter_prediction(x + mx, y + my)
 
         # clipping (0,255) and store to image
         self.image[y:y + self.block_size, x:x + self.block_size] = np.clip(recBlock, 0, 255).astype('uint8')

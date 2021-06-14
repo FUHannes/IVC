@@ -257,8 +257,15 @@ class Encoder:
         # accessor for current block
         orgBlock = self.image[y:y + self.block_size, x:x + self.block_size]
 
+        # motion vector: offset of block relative to last frame
+        # TODO: find best mvec for this block
+        mx, my = 2, 2
+        # clipping mvec into image dimensions (+ padding border)
+        mx = max(-x, min(mx, self.image_width + self.pad_width - (x + self.block_size)))
+        my = max(-y, min(my, self.image_height + self.pad_height - (y + self.block_size)))
+        
         # Inter prediction
-        predBlock = self._inter_prediction(x, y)
+        predBlock = self._inter_prediction(x + mx, y + my)
 
         predError = orgBlock.astype('int') - predBlock
         # dct
@@ -272,7 +279,7 @@ class Encoder:
         # Sum estimated bits per block
         self.est_bits += self.entropyEncoder.est_block_bits_inter_pic(scanned_block)
         # actual entropy encoding
-        self.entropyEncoder.write_block_inter_pic(scanned_block)
+        self.entropyEncoder.write_block_inter_pic(scanned_block, mx, my)
 
     # Calculate lagrangian cost for given block and prediction mode.
     def test_encode_block_intra_pic(self, x: int, y: int, pred_mode: PredictionMode, lagrange_multiplier):
