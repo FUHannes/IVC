@@ -23,6 +23,7 @@ class EntropyEncoder:
         self.arith_enc = ArithEncoder(bitstream)
         self.cm = ContextModeler(block_size)
         self.est_bits = 0
+        self.block_size = block_size
 
     def expGolombProbAdapted(self, value: int, prob, estimation=False):
         assert (value >= 0)
@@ -136,7 +137,26 @@ class EntropyEncoder:
     def write_block_inter_pic(self, qIdxBlock, mx: int, my: int):
         """ Writes all values sequential to the bitstream
         """
-        # write side information: later
+        # TODO of exercise 8.3
+        inter_flag = 1
+
+        if inter_flag == 1:
+
+            mx_abs_greater0_flag = abs(mx) > 0
+            my_abs_greater0_flag = abs(my) > 0
+
+            mx_sign = mx > 0
+            my_sign = my > 0
+
+            self.arith_enc.encodeBin(mx_abs_greater0_flag, self.cm.prob_mx_abs_greater0_flag)
+            if mx_abs_greater0_flag:
+                self.expGolombProbAdapted(abs(mx), self.cm.prob_mx)
+                self.arith_enc.encodeBinEP(mx_sign)
+
+            self.arith_enc.encodeBin(my_abs_greater0_flag, self.cm.prob_my_abs_greater0_flag)
+            if my_abs_greater0_flag:
+                self.expGolombProbAdapted(abs(my), self.cm.prob_my)
+                self.arith_enc.encodeBinEP(my_sign)
 
         # write quantization indexes
         self.write_qindexes_block(qIdxBlock)
@@ -187,11 +207,27 @@ class EntropyEncoder:
         return self.est_bits
 
     # similar to write_block_inter_pic but estimation only
-    def est_block_bits_inter_pic(self, qIdxBlock):
+    def est_block_bits_inter_pic(self, qIdxBlock, mx: int, my: int):
         self.est_bits = 0
         org_probs = copy.deepcopy(self.cm)
 
-        # side info: later
+        # TODO of exercise 8.3
+        inter_flag = 1
+
+        if inter_flag == 1:
+
+            mx_abs_greater0_flag = abs(mx) > 0
+            my_abs_greater0_flag = abs(my) > 0
+
+            self.est_bits += self.cm.prob_mx_abs_greater0_flag.estBits(mx_abs_greater0_flag)
+            if mx_abs_greater0_flag:
+                self.expGolombProbAdapted(abs(mx), self.cm.prob_mx, estimation=True)
+                self.est_bits += 1
+
+            self.est_bits += self.cm.prob_my_abs_greater0_flag.estBits(my_abs_greater0_flag)
+            if my_abs_greater0_flag:
+                self.expGolombProbAdapted(abs(my), self.cm.prob_my, estimation=True)
+                self.est_bits += 1
 
         # quant indexes
         self.add_bits_qindex_block(qIdxBlock)
