@@ -134,14 +134,14 @@ class EntropyEncoder:
         # write quantization indexes
         self.write_qindexes_block(qIdxBlock)
 
-    def write_block_inter_pic(self, qIdxBlock, mx: int, my: int):
+    def write_block_inter_pic(self, qIdxBlock, inter_flag: int, mx: int, my: int):
         """ Writes all values sequential to the bitstream
         """
-        # TODO of exercise 8.3
-        inter_flag = 1
+        # write side information
+        self.arith_enc.encodeBin(inter_flag, self.cm.prediction_inter_flag)
 
-        if inter_flag == 1:
-
+        # motion data
+        if inter_flag:
             mx_abs_greater0_flag = abs(mx) > 0
             my_abs_greater0_flag = abs(my) > 0
 
@@ -207,15 +207,14 @@ class EntropyEncoder:
         return self.est_bits
 
     # similar to write_block_inter_pic but estimation only
-    def est_block_bits_inter_pic(self, qIdxBlock, mx: int, my: int):
+    def est_block_bits_inter_pic(self, qIdxBlock, inter_flag: int, mx: int, my: int):
         self.est_bits = 0
         org_probs = copy.deepcopy(self.cm)
 
-        # TODO of exercise 8.3
-        inter_flag = 1
+        # side info
+        self.est_bits += self.cm.prediction_inter_flag.estBits(inter_flag)
 
-        if inter_flag == 1:
-
+        if inter_flag:
             mx_abs_greater0_flag = abs(mx) > 0
             my_abs_greater0_flag = abs(my) > 0
 

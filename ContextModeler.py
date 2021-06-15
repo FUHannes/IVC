@@ -2,7 +2,7 @@ from arithBase import ProbModel
 import numpy as np
 
 class ContextModeler:
-    
+
     def __init__(self, block_size: int):
         self.prob_sig_flag = None
         self.prob_gt1_flag = None
@@ -12,6 +12,7 @@ class ContextModeler:
         self.prediction_mode_bin1 = ProbModel()
         self.prediction_mode_bin2 = ProbModel()
         self.prediction_mode_bin3 = ProbModel()
+        self.prediction_inter_flag = ProbModel()
 
         self.diag_map = self.genDiagMap(block_size)
         self.models_sig_flag = self.initProbModels(3)
@@ -43,7 +44,7 @@ class ContextModeler:
                 diags.append(l + r)
 
         return np.array(diags)
-    
+
     def switchContext(self, pos):
         # more or less arbitrary choice of diagonal classes
         if self.diag_map[pos] < 4:
@@ -56,4 +57,3 @@ class ContextModeler:
         self.prob_sig_flag = self.models_sig_flag[cl]
         self.prob_gt1_flag = self.models_gt1_flag[cl]
         self.prob_level_prefix = self.models_level_prefix[cl]
-

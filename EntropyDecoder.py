@@ -38,11 +38,12 @@ class EntropyDecoder:
         return qidx_block, prediction_mode
 
     def read_block_inter_pic(self):
-        # TODO of exercise 8.3
-        inter_flag = 1
+        # read intra/inter mode
+        inter_flag = self.arith_dec.decodeBin(self.cm.prediction_inter_flag)
 
+        # read side information
         mx, my = 0, 0
-        if inter_flag == 1:
+        if inter_flag:
             mx_abs_greater0_flag = self.arith_dec.decodeBin(self.cm.prob_mx_abs_greater0_flag)
             if mx_abs_greater0_flag:
                 mx_abs = self.expGolombProbAdapted(self.cm.prob_mx)
@@ -59,7 +60,7 @@ class EntropyDecoder:
         qidx_block = self.read_qindexes_block()
 
         return qidx_block, inter_flag, mx, my
-    
+
     def read_qindexes_block(self):
         # loop over all positions inside NxN block
         #  --> call readQIndex for all quantization index
