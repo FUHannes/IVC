@@ -91,11 +91,14 @@ def parse_args():
     parser.add_argument('-vs', '--versions', dest='versions', type=str,
                         help='optional: comma separated versions that should be also compared to the new encoder and decoder version, e.g. \'1.0,2.0\'',
                         required=False)
+    parser.add_argument('-print', dest='print', action='store_true',
+                        help='optional: if set, no new data is computed but version curves are plotted')
 
     args = parser.parse_args()
     return args
 
 if __name__ == '__main__':
     args = parse_args()
-    #generate_data(args.filename, args.version, block_size=16)
+    if not args.print:
+        generate_data(args.filename, args.version, block_size=16)
     plot_data(args.filename, args.version, args.versions)
