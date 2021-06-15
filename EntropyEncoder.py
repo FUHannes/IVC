@@ -1,7 +1,7 @@
 import numpy as np
 import copy
 
-from IntraPredictionCalculator import PredictionMode
+from PredictionCalculator import PredictionMode
 from OBitstream import OBitstream
 from arithBase import ProbModel
 from arithEncoder import ArithEncoder

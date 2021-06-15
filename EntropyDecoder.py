@@ -3,7 +3,7 @@ import numpy as np
 from IBitstream import IBitstream
 from arithBase import ProbModel
 from arithDecoder import ArithDecoder
-from IntraPredictionCalculator import PredictionMode
+from PredictionCalculator import PredictionMode
 from ContextModeler import ContextModeler
 
 

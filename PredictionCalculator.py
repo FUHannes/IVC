@@ -12,9 +12,12 @@ def random_prediction_mode():
     # TODO: set to [0,3] when PLANAR_PREDICTION is implemented
     return random.randint(0,3)
 
-class IntraPredictionCalculator:
-    def __init__(self, image: np.ndarray, blocksize: int):
+class PredictionCalculator:
+    def __init__(self, image: np.ndarray, blocksize: int, ref_image: np.array = None ):
         self.image = image
+        self.ref_image = ref_image
+        self.coded_width = self.image.shape[1]
+        self.coded_height = self.image.shape[0]
         self.blocksize = blocksize
 
     def left_border(self, x: int, y: int):
@@ -72,4 +75,10 @@ class IntraPredictionCalculator:
         pred_block //= (2 * self.blocksize)
         return pred_block
 
+    def get_inter_prediction(self, x: int, y: int , mx: int, my: int):
+        mx = max(-x, min(mx, self.coded_width - (x + self.blocksize)))
+        my = max(-y, min(my, self.coded_height - (y + self.blocksize)))
+        xref = x + mx
+        yref = y + my
+        return self.ref_image[yref:yref + self.blocksize, xref:xref + self.blocksize]
 

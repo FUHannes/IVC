@@ -3,8 +3,8 @@ from tqdm import tqdm
 import random
 
 from EntropyEncoder import EntropyEncoder
-from IntraPredictionCalculator import IntraPredictionCalculator
-from IntraPredictionCalculator import PredictionMode
+from PredictionCalculator import PredictionCalculator
+from PredictionCalculator import PredictionMode
 from OBitstream import OBitstream
 from dct import Transformation
 
@@ -89,10 +89,6 @@ class Encoder:
     def _add_padding(self):
         self.image = np.pad(self.image, ((0, self.pad_height), (0, self.pad_width)), "edge")
 
-    # motion-compensated prediction (at the moment, only frame difference prediction)
-    def _inter_prediction(self, x, y):
-        return self.image_reconstructed_array[-1][y:y + self.block_size, x:x + self.block_size]
-
     # Gets an image and return an encoded bitstream.
     def encode_image(self):
         self.image = read_image(self.input_path)
@@ -148,7 +144,7 @@ class Encoder:
         self.entropyEncoder = EntropyEncoder(self.outputBitstream, self.block_size)
 
         # initialize intra prediction calculator
-        self.intra_pred_calc = IntraPredictionCalculator(self.image_reconstructed, self.block_size)
+        self.intra_pred_calc = PredictionCalculator(self.image_reconstructed, self.block_size)
 
         if show_frame_progress:
             total_blocks = ((self.image_height + self.pad_height) // self.block_size) * ((self.image_width + self.pad_width) // self.block_size)
@@ -188,14 +184,14 @@ class Encoder:
         self.entropyEncoder = EntropyEncoder(self.outputBitstream, self.block_size)
 
         # initialize intra prediction calculator
-        self.intra_pred_calc = IntraPredictionCalculator(self.image_reconstructed, self.block_size)
+        self.intra_pred_calc = PredictionCalculator(self.image_reconstructed, self.block_size, self.image_reconstructed_array[-1])
 
         # process image
         lagrange_multiplier = 0.1 * self.qs * self.qs
         for yi in range(0, self.image_height + self.pad_height, self.block_size):
             for xi in range(0, self.image_width + self.pad_width, self.block_size):
                 # choose random motion vector: Replace later with motion estimation
-                max_motion = 0 #self.block_size
+                max_motion = 0 #self.block_size  # set unequal 0 for testing
                 mx = random.randint(-max_motion, max_motion)
                 my = random.randint(-max_motion, max_motion)
 
@@ -259,13 +255,9 @@ class Encoder:
         # accessor for current block
         orgBlock = self.image[y:y + self.block_size, x:x + self.block_size]
 
+        # prediction
         if inter_flag:
-            # clipping mvec into image dimensions (+ padding border)
-            mx = max(-x, min(mx, self.image_width + self.pad_width - (x + self.block_size)))
-            my = max(-y, min(my, self.image_height + self.pad_height - (y + self.block_size)))
-
-            # Inter prediction
-            predBlock = self._inter_prediction(x + mx, y + my)
+            predBlock = self.intra_pred_calc.get_inter_prediction(x, y, mx, my)
         else:
             predBlock = self.intra_pred_calc.get_prediction(x, y, PredictionMode.DC_PREDICTION)
 
@@ -323,12 +315,7 @@ class Encoder:
 
         # Prediction
         if inter_flag:
-            # clipping mvec into image dimensions (+ padding border)
-            mx = max(-x, min(mx, self.image_width + self.pad_width - (x + self.block_size)))
-            my = max(-y, min(my, self.image_height + self.pad_height - (y + self.block_size)))
-
-            # Inter prediction
-            pred_block = self._inter_prediction(x + mx, y + my)
+            pred_block = self.intra_pred_calc.get_inter_prediction(x, y, mx, my)
         else:
             pred_block = self.intra_pred_calc.get_prediction(x, y, PredictionMode.DC_PREDICTION)
 

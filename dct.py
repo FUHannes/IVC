@@ -2,7 +2,7 @@
 from scipy.fftpack import dct, idct
 import numpy as np
 import matplotlib.pylab as plt 
-from IntraPredictionCalculator import PredictionMode
+from PredictionCalculator import PredictionMode
 import math
 
 # %% 
