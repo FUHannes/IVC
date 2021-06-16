@@ -196,16 +196,15 @@ class Encoder:
 
         for yi in range(0, self.image_height + self.pad_height, self.block_size):
             for xi in range(0, self.image_width + self.pad_width, self.block_size):
-                mx, my = self.estimate_motion_vector(yi, xi)
-                self.encode_block_inter_pic(xi, yi, 1, mx, my)
+                mx, my = self.estimate_motion_vector(xi, yi)
 
-                # # mode decision between inter and dc mode
-                # inter_mode_cost = self.test_encode_block_inter_pic(xi, yi, 1, mx, my, lagrange_multiplier)
-                # dc_mode_cost = self.test_encode_block_inter_pic(xi, yi, 0, 0, 0, lagrange_multiplier)
-                # if inter_mode_cost < dc_mode_cost:
-                #     self.encode_block_inter_pic(xi, yi, 1, mx, my)
-                # else:
-                #     self.encode_block_inter_pic(xi, yi, 0, 0, 0)
+                # mode decision between inter and dc mode
+                inter_mode_cost = self.test_encode_block_inter_pic(xi, yi, 1, mx, my, lagrange_multiplier)
+                dc_mode_cost = self.test_encode_block_inter_pic(xi, yi, 0, 0, 0, lagrange_multiplier)
+                if inter_mode_cost < dc_mode_cost:
+                    self.encode_block_inter_pic(xi, yi, 1, mx, my)
+                else:
+                    self.encode_block_inter_pic(xi, yi, 0, 0, 0)
 
         # terminate arithmetic codeword (but keep output bitstream alive)
         self.entropyEncoder.terminate()
@@ -216,7 +215,6 @@ class Encoder:
         mx = 0
         my = 0
         current_block = self.image[yi:yi + self.block_size, xi:xi + self.block_size]
-
         for _my in range(-self.search_range, self.search_range):
             # Don't allow to go outside the picture height
             # TODO: Compute motion vector with padding (ensure enough padding space)
@@ -238,7 +236,7 @@ class Encoder:
 
     def sum_absolute_differences(self, a, b):
         # Compute the sum of the absolute differences
-        return np.sum(np.abs(np.subtract(a, b, dtype=np.float)))
+        return np.sum(np.abs(np.subtract(a, b, dtype=np.int)))
 
     def reconstruct_block(self, pred_block, q_idx_block, x, y, prediction_mode, update_rec_image=True):
         # reconstruct transform coefficients from quantization indexes
