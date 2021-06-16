@@ -40,6 +40,11 @@ def main():
                         default=30,
                         dest='n_frames',
                         type=int)
+    parser.add_argument('-sr', '--search-range',
+                        help='Specify search range S',
+                        default=8,
+                        dest='search_range',
+                        type=int)
     args = parser.parse_args()
 
     start_time = time.process_time()  # benchmarking speed
@@ -48,7 +53,7 @@ def main():
         enc.encode_image()
     else:
         width, height = list(map(int, args.video_size.split('x')))  # Parse width and height and cast to int
-        enc.encode_video(width, height, args.n_frames)
+        enc.encode_video(width, height, args.n_frames, args.search_range)
     encoding_time = time.process_time() - start_time
     print(f'it took {encoding_time * 1000} ms to encode')
 
