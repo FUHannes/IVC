@@ -73,6 +73,7 @@ class Encoder:
         self.est_bits = 0
         self.transformation = Transformation(block_size)
         self.search_range = 0
+        self.rmv = []
 
     def init_obitstream(self, img_height, img_width, path):
         outputBitstream = OBitstream(path)
@@ -107,8 +108,7 @@ class Encoder:
         print(f'# of bits in bitstream without header {self.outputBitstream.bits_written - 56}')
         if self.reconstruction_path:
             self.image_reconstructed_array.append(self.image_reconstructed)
-            self.write_out()    
-
+            self.write_out()
 
     def calculate_lookup_table(self):
         rmv = []
@@ -240,7 +240,7 @@ class Encoder:
                     continue
                 search_block = self.image_reconstructed_array[-1][yi + _my:yi + _my + self.block_size,
                            xi + _mx:xi + _mx + self.block_size]
-                _sad = self.sum_absolute_differences(search_block, current_block) 
+                _sad = self.sum_absolute_differences(search_block, current_block)
                 diff_mx = abs(_mx - m_dach_x)
                 diff_my = abs(_my - m_dach_y)
                 lagrangian_cost = _sad + lagrange_root * (self.rmv[diff_mx] +self.rmv[diff_my])
