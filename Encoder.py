@@ -1,8 +1,9 @@
 import numpy as np
 from tqdm import tqdm
 import random
+import math
 
-from EntropyEncoder import EntropyEncoder
+from EntropyEncoder import EntropyEncoder, bitsUsed
 from PredictionCalculator import PredictionCalculator
 from PredictionCalculator import PredictionMode
 from OBitstream import OBitstream
@@ -106,13 +107,21 @@ class Encoder:
         print(f'# of bits in bitstream without header {self.outputBitstream.bits_written - 56}')
         if self.reconstruction_path:
             self.image_reconstructed_array.append(self.image_reconstructed)
-            self.write_out()
+            self.write_out()    
+
+
+    def calculate_lookup_table(self):
+        rmv = []
+        for i in range(2 * self.search_range + 1):
+            rmv.append(2*bitsUsed(i) +1)
+        return rmv
 
     def encode_video(self, width, height, n_frames, search_range):
         self.raw_video = True
         video = read_video(self.input_path, width, height, n_frames)
         self.set_image_size(width, height)
         self.search_range = search_range
+        self.rmv = self.calculate_lookup_table()
 
         # open bitstream and write header
         self.outputBitstream = self.init_obitstream(height, width, self.output_path)
@@ -193,10 +202,12 @@ class Encoder:
 
         # process image
         lagrange_multiplier = 0.1 * self.qs * self.qs
+        lagrange_root = math.sqrt(lagrange_multiplier)
+
 
         for yi in range(0, self.image_height + self.pad_height, self.block_size):
             for xi in range(0, self.image_width + self.pad_width, self.block_size):
-                mx, my = self.estimate_motion_vector(xi, yi)
+                mx, my = self.estimate_motion_vector(xi, yi, lagrange_root)
 
                 # mode decision between inter and dc mode
                 inter_mode_cost = self.test_encode_block_inter_pic(xi, yi, 1, mx, my, lagrange_multiplier)
@@ -209,11 +220,14 @@ class Encoder:
         # terminate arithmetic codeword (but keep output bitstream alive)
         self.entropyEncoder.terminate()
 
-    def estimate_motion_vector(self, xi, yi):
-        sad = float('inf')
+    def estimate_motion_vector(self, xi, yi, lagrange_root):
+        minimum_lagrangian_cost = float('inf')
 
         mx = 0
         my = 0
+
+        m_dach_x, m_dach_y = [0,0] #TODO: add Prediction of Motion Vectors task 9.2
+
         current_block = self.image[yi:yi + self.block_size, xi:xi + self.block_size]
         for _my in range(-self.search_range, self.search_range + 1):
             # Don't allow to go outside the picture height
@@ -226,9 +240,12 @@ class Encoder:
                     continue
                 search_block = self.image_reconstructed_array[-1][yi + _my:yi + _my + self.block_size,
                            xi + _mx:xi + _mx + self.block_size]
-                _sad = self.sum_absolute_differences(search_block, current_block)
-                if _sad < sad:
-                    sad = _sad
+                _sad = self.sum_absolute_differences(search_block, current_block) 
+                diff_mx = abs(_mx - m_dach_x)
+                diff_my = abs(_my - m_dach_y)
+                lagrangian_cost = _sad + lagrange_root * (self.rmv[diff_mx] +self.rmv[diff_my])
+                if lagrangian_cost < minimum_lagrangian_cost:
+                    minimum_lagrangian_cost = lagrangian_cost
                     mx = _mx
                     my = _my
 
