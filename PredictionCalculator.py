@@ -83,8 +83,6 @@ class PredictionCalculator:
         return pred_block
 
     def get_inter_prediction(self, x: int, y: int, mx: int, my: int):
-        mx = max(-x, min(mx, self.coded_width - (x + self.blocksize)))
-        my = max(-y, min(my, self.coded_height - (y + self.blocksize)))
-        xref = x + mx
-        yref = y + my
+        xref = x + mx + self.blocksize
+        yref = y + my + self.blocksize
         return self.ref_image[yref:yref + self.blocksize, xref:xref + self.blocksize]
