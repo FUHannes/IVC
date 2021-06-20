@@ -118,7 +118,8 @@ class Decoder:
                                dtype=np.uint8)
 
     def decode_next_frame_inter(self):
-        self.intra_pred_calc = PredictionCalculator(self.image, self.block_size, self.image_array[-1])
+        padded_last_frame = np.pad(self.image_array[-1], ((self.block_size, self.block_size), (self.block_size, self.block_size)), "edge")
+        self.intra_pred_calc = PredictionCalculator(self.image, self.block_size, padded_last_frame)
 
         # start new arithmetic codeword
         self.ent_dec = EntropyDecoder(self.bitstream, self.block_size)
@@ -132,6 +133,7 @@ class Decoder:
         is_ok = self.ent_dec.terminate()
         if not is_ok:
             raise Exception('Arithmetic codeword not correctly terminated at end of frame')
+        
 
         self.image_array.append(self.image)
         self.image = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],

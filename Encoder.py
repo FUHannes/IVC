@@ -134,6 +134,9 @@ class Encoder:
             else:
                 self.encode_frame_intra()
                 is_first_frame = False
+
+            self.image_reconstructed = np.pad(self.image_reconstructed, ((self.block_size, self.block_size), (self.block_size, self.block_size)), "edge")
+
             self.image_reconstructed_array.append(self.image_reconstructed)
 
         # terminate bitstream
@@ -190,6 +193,8 @@ class Encoder:
     def encode_frame_inter(self):
         # add padding
         self._add_padding()
+
+        
         self.image_reconstructed = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],
                                             dtype=np.uint8)
 
@@ -232,11 +237,11 @@ class Encoder:
         for _my in range(-self.search_range, self.search_range + 1):
             # Don't allow to go outside the picture height
             # TODO: Compute motion vector with padding (ensure enough padding space)
-            if _my + yi < 0 or _my + self.block_size + yi > self.image_height + self.pad_height:
+            if _my + yi < 0 or _my - self.block_size + yi > self.image_height + self.pad_height:
                 continue
             for _mx in range(-self.search_range, self.search_range + 1):
                 # Don't allow to go outside the picture width
-                if _mx + xi < 0 or _mx + self.block_size + xi > self.image_width + self.pad_width:
+                if _mx + xi < 0 or _mx - self.block_size + xi > self.image_width + self.pad_width:
                     continue
                 search_block = self.image_reconstructed_array[-1][yi + _my:yi + _my + self.block_size,
                            xi + _mx:xi + _mx + self.block_size]
