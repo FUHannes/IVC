@@ -135,7 +135,7 @@ class Encoder:
                 self.encode_frame_intra()
                 is_first_frame = False
 
-            self.image_reconstructed = np.pad(self.image_reconstructed, ((self.block_size, self.block_size), (self.block_size, self.block_size)), "edge")
+            self.padded_rec_img = np.pad(self.image_reconstructed, ((self.block_size, self.block_size), (self.block_size, self.block_size)), "edge")
 
             self.image_reconstructed_array.append(self.image_reconstructed)
 
@@ -203,7 +203,7 @@ class Encoder:
 
         # initialize intra prediction calculator
         self.intra_pred_calc = PredictionCalculator(self.image_reconstructed, self.block_size,
-                                                    self.image_reconstructed_array[-1])
+                                                    self.padded_rec_img)
 
         # process image
         lagrange_multiplier = 0.1 * self.qs * self.qs
@@ -235,16 +235,9 @@ class Encoder:
 
         current_block = self.image[yi:yi + self.block_size, xi:xi + self.block_size]
         for _my in range(-self.search_range, self.search_range + 1):
-            # Don't allow to go outside the picture height
-            # TODO: Compute motion vector with padding (ensure enough padding space)
-            if _my + yi < 0 or _my - self.block_size + yi > self.image_height + self.pad_height:
-                continue
             for _mx in range(-self.search_range, self.search_range + 1):
-                # Don't allow to go outside the picture width
-                if _mx + xi < 0 or _mx - self.block_size + xi > self.image_width + self.pad_width:
-                    continue
-                search_block = self.image_reconstructed_array[-1][yi + _my:yi + _my + self.block_size,
-                           xi + _mx:xi + _mx + self.block_size]
+                search_block = self.padded_rec_img[yi + _my + self.block_size:yi + _my + 2 * self.block_size,
+                           xi + _mx + self.block_size:xi + _mx + 2 * self.block_size]
                 _sad = self.sum_absolute_differences(search_block, current_block)
                 diff_mx = abs(_mx - m_dach_x)
                 diff_my = abs(_my - m_dach_y)
