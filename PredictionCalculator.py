@@ -83,6 +83,6 @@ class PredictionCalculator:
         return pred_block
 
     def get_inter_prediction(self, x: int, y: int, mx: int, my: int):
-        xref = x + mx + self.blocksize
-        yref = y + my + self.blocksize
+        xref = max(0, min(x + mx + self.blocksize, self.ref_image.shape[1] - self.blocksize)) # clip to padded image size
+        yref = max(0, min(y + my + self.blocksize, self.ref_image.shape[0] - self.blocksize)) # clip to padded image size
         return self.ref_image[yref:yref + self.blocksize, xref:xref + self.blocksize]

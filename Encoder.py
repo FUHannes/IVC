@@ -233,9 +233,14 @@ class Encoder:
 
         m_dach_x, m_dach_y = [0,0] #TODO: add Prediction of Motion Vectors task 9.2
 
+        mx_min = max(-self.search_range, -(xi + self.block_size))
+        my_min = max(-self.search_range, -(yi + self.block_size))
+        mx_max = min(self.search_range, self.padded_rec_img.shape[1] - xi - 2 * self.block_size)
+        my_max = min(self.search_range, self.padded_rec_img.shape[0] - yi - 2 * self.block_size)
+
         current_block = self.image[yi:yi + self.block_size, xi:xi + self.block_size]
-        for _my in range(-self.search_range, self.search_range + 1):
-            for _mx in range(-self.search_range, self.search_range + 1):
+        for _my in range(my_min, my_max + 1):
+            for _mx in range(mx_min, mx_max + 1):
                 search_block = self.padded_rec_img[yi + _my + self.block_size:yi + _my + 2 * self.block_size,
                            xi + _mx + self.block_size:xi + _mx + 2 * self.block_size]
                 _sad = self.sum_absolute_differences(search_block, current_block)
