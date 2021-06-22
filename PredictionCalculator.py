@@ -23,6 +23,23 @@ class PredictionCalculator:
         self.coded_width = self.image.shape[1]
         self.coded_height = self.image.shape[0]
         self.blocksize = blocksize
+        self.mv = np.zeros([self.coded_height // self.blocksize + 1, 
+                            self.coded_width // self.blocksize + 2, 2], dtype=np.int)
+
+    def store_mv(self, x: int, y: int, mx: int, my: int):
+        yb = y // self.blocksize + 1
+        xb = x // self.blocksize + 1
+        self.mv[yb, xb] = mx, my
+
+    def get_mv_pred(self, x: int, y: int):
+        yb = y // self.blocksize + 1
+        xb = x // self.blocksize + 1
+        mxa, mya = self.mv[yb, xb - 1]      # left block
+        mxb, myb = self.mv[yb - 1, xb]      # block above
+        mxc, myc = self.mv[yb - 1, xb + 1]  # block above-right
+        mxp = (mxa + mxb + mxc) - min(mxa, mxb, mxc) - max(mxa, mxb, mxc)  # median: center of sorted list
+        myp = (mya + myb + myc) - min(mya, myb, myc) - max(mya, myb, myc)  # median: center of sorted list
+        return mxp, myp
 
     def left_border(self, x: int, y: int):
         return self.image[y:y + self.blocksize, x - 1:x].ravel() if x > 0 else np.full([self.blocksize], 128)

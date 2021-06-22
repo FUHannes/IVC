@@ -68,7 +68,7 @@ class Decoder:
 
     def decode_block_inter_pic(self, x: int, y: int):
         # entropy decoding (EntropyDecoder)
-        ent_dec_block, inter_flag, mx, my = self.ent_dec.read_block_inter_pic()
+        ent_dec_block, inter_flag, dmx, dmy = self.ent_dec.read_block_inter_pic()
         # reverse scanning
         ordered_block = de_diagonalize(ent_dec_block)
         # de-quantization
@@ -78,6 +78,10 @@ class Decoder:
 
         # prediction
         if inter_flag:
+            mxp, myp = self.intra_pred_calc.get_mv_pred(x, y)
+            mx = mxp + dmx
+            my = myp + dmy
+            self.intra_pred_calc.store_mv(x, y, mx, my)
             recBlock += self.intra_pred_calc.get_inter_prediction(x, y, mx, my)
         else:
             recBlock += self.intra_pred_calc.get_prediction(x, y, PredictionMode.DC_PREDICTION)
