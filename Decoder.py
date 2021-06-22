@@ -62,7 +62,7 @@ class Decoder:
         # idct
         recBlock = self.transformation.backward_transform(recBlock, prediction_mode)
         # adding prediction
-        recBlock += self.intra_pred_calc.get_prediction(x, y, prediction_mode)
+        recBlock += self.pred_calc.get_prediction(x, y, prediction_mode)
         # clipping (0,255) and store to image
         self.image[y:y + self.block_size, x:x + self.block_size] = np.clip(recBlock, 0, 255).astype('uint8')
 
@@ -78,13 +78,13 @@ class Decoder:
 
         # prediction
         if inter_flag:
-            mxp, myp = self.intra_pred_calc.get_mv_pred(x, y)
+            mxp, myp = self.pred_calc.get_mv_pred(x, y)
             mx = mxp + dmx
             my = myp + dmy
-            self.intra_pred_calc.store_mv(x, y, mx, my)
-            recBlock += self.intra_pred_calc.get_inter_prediction(x, y, mx, my)
+            self.pred_calc.store_mv(x, y, mx, my)
+            recBlock += self.pred_calc.get_inter_prediction(x, y, mx, my)
         else:
-            recBlock += self.intra_pred_calc.get_prediction(x, y, PredictionMode.DC_PREDICTION)
+            recBlock += self.pred_calc.get_prediction(x, y, PredictionMode.DC_PREDICTION)
 
         # clipping (0,255) and store to image
         self.image[y:y + self.block_size, x:x + self.block_size] = np.clip(recBlock, 0, 255).astype('uint8')
@@ -102,7 +102,7 @@ class Decoder:
         return True
 
     def decode_next_frame_intra(self):
-        self.intra_pred_calc = PredictionCalculator(self.image, self.block_size)
+        self.pred_calc = PredictionCalculator(self.image, self.block_size)
 
         # start new arithmetic codeword
         self.ent_dec = EntropyDecoder(self.bitstream, self.block_size)
@@ -123,7 +123,7 @@ class Decoder:
 
     def decode_next_frame_inter(self):
         padded_last_frame = np.pad(self.image_array[-1], ((self.block_size, self.block_size), (self.block_size, self.block_size)), "edge")
-        self.intra_pred_calc = PredictionCalculator(self.image, self.block_size, padded_last_frame)
+        self.pred_calc = PredictionCalculator(self.image, self.block_size, padded_last_frame)
 
         # start new arithmetic codeword
         self.ent_dec = EntropyDecoder(self.bitstream, self.block_size)

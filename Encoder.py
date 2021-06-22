@@ -158,7 +158,7 @@ class Encoder:
         self.entropyEncoder = EntropyEncoder(self.outputBitstream, self.block_size)
 
         # initialize intra prediction calculator
-        self.intra_pred_calc = PredictionCalculator(self.image_reconstructed, self.block_size)
+        self.pred_calc = PredictionCalculator(self.image_reconstructed, self.block_size)
 
         if show_frame_progress:
             total_blocks = ((self.image_height + self.pad_height) // self.block_size) * (
@@ -202,7 +202,7 @@ class Encoder:
         self.entropyEncoder = EntropyEncoder(self.outputBitstream, self.block_size)
 
         # initialize intra prediction calculator
-        self.intra_pred_calc = PredictionCalculator(self.image_reconstructed, self.block_size,
+        self.pred_calc = PredictionCalculator(self.image_reconstructed, self.block_size,
                                                     self.padded_rec_img)
 
         # process image
@@ -212,7 +212,7 @@ class Encoder:
 
         for yi in range(0, self.image_height + self.pad_height, self.block_size):
             for xi in range(0, self.image_width + self.pad_width, self.block_size):
-                mxp, myp = self.intra_pred_calc.get_mv_pred(xi, yi)
+                mxp, myp = self.pred_calc.get_mv_pred(xi, yi)
 
                 mx, my = self.estimate_motion_vector(xi, yi, mxp, myp, lagrange_root)
 
@@ -232,8 +232,6 @@ class Encoder:
 
         mx = 0
         my = 0
-
-        #m_dach_x, m_dach_y = [0,0] #TODO: add Prediction of Motion Vectors task 9.2
 
         mx_min = max(-self.search_range, -(xi + self.block_size))
         my_min = max(-self.search_range, -(yi + self.block_size))
@@ -280,7 +278,7 @@ class Encoder:
         # accessor for current block
         orgBlock = self.image[y:y + self.block_size, x:x + self.block_size]
         # prediction
-        predBlock = self.intra_pred_calc.get_prediction(x, y, pred_mode)
+        predBlock = self.pred_calc.get_prediction(x, y, pred_mode)
         predError = orgBlock.astype('int') - predBlock
         # dct
         transCoeff = self.transformation.forward_transform(predError, pred_mode)
@@ -311,10 +309,10 @@ class Encoder:
 
         # prediction
         if inter_flag:
-            predBlock = self.intra_pred_calc.get_inter_prediction(x, y, mx, my)
-            self.intra_pred_calc.store_mv(x, y, mx, my)
+            predBlock = self.pred_calc.get_inter_prediction(x, y, mx, my)
+            self.pred_calc.store_mv(x, y, mx, my)
         else:
-            predBlock = self.intra_pred_calc.get_prediction(x, y, PredictionMode.DC_PREDICTION)
+            predBlock = self.pred_calc.get_prediction(x, y, PredictionMode.DC_PREDICTION)
 
         predError = orgBlock.astype('int') - predBlock
         # dct
@@ -338,7 +336,7 @@ class Encoder:
         org_block = self.image[y:y + self.block_size, x:x + self.block_size]
 
         # Prediction, Transform, Quantization.
-        pred_block = self.intra_pred_calc.get_prediction(x, y, pred_mode)
+        pred_block = self.pred_calc.get_prediction(x, y, pred_mode)
         pred_error = org_block.astype('int') - pred_block
 
         trans_coeff = self.transformation.forward_transform(pred_error, pred_mode)
@@ -372,9 +370,9 @@ class Encoder:
 
         # Prediction
         if inter_flag:
-            pred_block = self.intra_pred_calc.get_inter_prediction(x, y, mx, my)
+            pred_block = self.pred_calc.get_inter_prediction(x, y, mx, my)
         else:
-            pred_block = self.intra_pred_calc.get_prediction(x, y, PredictionMode.DC_PREDICTION)
+            pred_block = self.pred_calc.get_prediction(x, y, PredictionMode.DC_PREDICTION)
 
         # Prediction, Transform, Quantization.
         pred_error = org_block.astype('int') - pred_block

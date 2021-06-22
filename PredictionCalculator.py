@@ -11,11 +11,6 @@ class PredictionMode(IntEnum):
     PLANAR_PREDICTION = 3
 
 
-def random_prediction_mode():
-    # TODO: set to [0,3] when PLANAR_PREDICTION is implemented
-    return random.randint(0, 3)
-
-
 class PredictionCalculator:
     def __init__(self, image: np.ndarray, blocksize: int, ref_image: np.array = None):
         self.image = image
