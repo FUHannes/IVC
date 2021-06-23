@@ -1,8 +1,7 @@
-import random
 from enum import IntEnum
 
 import numpy as np
-
+from scipy import signal
 
 class PredictionMode(IntEnum):
     DC_PREDICTION = 0
@@ -13,13 +12,26 @@ class PredictionMode(IntEnum):
 
 class PredictionCalculator:
     def __init__(self, image: np.ndarray, blocksize: int, ref_image: np.array = None):
-        self.image = image
+        self.image = self.half_sample_accurate_motion_compensation(image, blocksize)
         self.ref_image = ref_image
         self.coded_width = self.image.shape[1]
         self.coded_height = self.image.shape[0]
         self.blocksize = blocksize
-        self.mv = np.zeros([self.coded_height // self.blocksize + 1, 
+        self.mv = np.zeros([self.coded_height // self.blocksize + 1,
                             self.coded_width // self.blocksize + 2, 2], dtype=np.int)
+
+    def half_sample_accurate_motion_compensation(self, image: np.ndarray, blocksize: int) -> np.ndarray:
+        # 1. Pad the (already padded) image with another 4 samples at each side (using sample repetition)
+        image = np.pad(image, ((0, 4 * blocksize), (0, 4 * blocksize)), "edge")
+        # 2. Create new image of size(2W+4B+8)×(2H+4B+8)that is filled with zeros andcopy the samples at integer positions from padded image (use NumPy slicing)
+        spreaded_image = np.repeat(np.repeat(image, 2, axis=0), 2, axis=1)
+        # 3 - 4 Vertical and Horizontal interpolation
+        kernel = np.array([[-1, 0, 4, 0, -11, 0, 40, 64, 40, 0, -11, 0, 4, 0, -1]]) / 64
+        kernel2D = kernel.T @ kernel
+        spreaded_image = signal.convolve2d(spreaded_image, kernel2D, mode="same")
+        # 5 Round the result to integers
+        spreaded_image = np.rint(spreaded_image).astype(int)
+        return spreaded_image
 
     def store_mv(self, x: int, y: int, mx: int, my: int):
         yb = y // self.blocksize + 1
@@ -29,8 +41,8 @@ class PredictionCalculator:
     def get_mv_pred(self, x: int, y: int):
         yb = y // self.blocksize + 1
         xb = x // self.blocksize + 1
-        mxa, mya = self.mv[yb, xb - 1]      # left block
-        mxb, myb = self.mv[yb - 1, xb]      # block above
+        mxa, mya = self.mv[yb, xb - 1]  # left block
+        mxb, myb = self.mv[yb - 1, xb]  # block above
         mxc, myc = self.mv[yb - 1, xb + 1]  # block above-right
         mxp = (mxa + mxb + mxc) - min(mxa, mxb, mxc) - max(mxa, mxb, mxc)  # median: center of sorted list
         myp = (mya + myb + myc) - min(mya, myb, myc) - max(mya, myb, myc)  # median: center of sorted list
@@ -83,18 +95,20 @@ class PredictionCalculator:
         # horizontal part
         for local_x in range(0, self.blocksize):
             pred_block[:, local_x] += (self.blocksize - 1 - local_x) * left_samples + (
-                        1 + local_x) * virtual_right_samples
+                    1 + local_x) * virtual_right_samples
 
         # vertical part
         for local_y in range(0, self.blocksize):
             pred_block[local_y, :] += (self.blocksize - 1 - local_y) * top_samples + (
-                        1 + local_y) * virtual_bottom_samples
+                    1 + local_y) * virtual_bottom_samples
 
         # final division (with rounding)
         pred_block //= (2 * self.blocksize)
         return pred_block
 
     def get_inter_prediction(self, x: int, y: int, mx: int, my: int):
-        xref = max(0, min(x + mx + self.blocksize, self.ref_image.shape[1] - self.blocksize)) # clip to padded image size
-        yref = max(0, min(y + my + self.blocksize, self.ref_image.shape[0] - self.blocksize)) # clip to padded image size
+        xref = max(0,
+                   min(x + mx + self.blocksize, self.ref_image.shape[1] - self.blocksize))  # clip to padded image size
+        yref = max(0,
+                   min(y + my + self.blocksize, self.ref_image.shape[0] - self.blocksize))  # clip to padded image size
         return self.ref_image[yref:yref + self.blocksize, xref:xref + self.blocksize]
