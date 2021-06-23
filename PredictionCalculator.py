@@ -1,5 +1,5 @@
 from enum import IntEnum
-from itertools import cycle
+
 import numpy as np
 from scipy import signal
 
@@ -14,7 +14,7 @@ class PredictionCalculator:
     def __init__(self, image: np.ndarray, blocksize: int, ref_image: np.array = None):
         self.image = image
         self.ref_image = ref_image
-        self.interpolated_reconstructed_image = None if ref_image is None else self.half_sample_accurate_motion_compensation(ref_image)
+        self.interpolated_reconstructed_image = self.half_sample_accurate_motion_compensation(ref_image) if ref_image is not None else None
         self.coded_width = self.image.shape[1]
         self.coded_height = self.image.shape[0]
         self.blocksize = blocksize
@@ -22,22 +22,18 @@ class PredictionCalculator:
                             self.coded_width // self.blocksize + 2, 2], dtype=np.int)
 
     def half_sample_accurate_motion_compensation(self, image: np.ndarray) -> np.ndarray:
-
         # 1. Pad the (already padded) image with another 4 samples at each side (using sample repetition)
         image = np.pad(image, ((0, 4), (0, 4)), "edge")
         # 2. Create new image of size(2W+4B+8)×(2H+4B+8)that is filled with zeros andcopy the samples at integer positions from padded image (use NumPy slicing)
-        image = np.repeat(np.repeat(image, 2, axis=0), 2, axis=1)
-        values = cycle([1, 0])
-        spreaded_image = np.array([[next(values) for i in range(image.shape[1])] if (j % 2) == 0 else [0 for i in range(image.shape[1])]  for j in range(image.shape[0])])
-        spreaded_image = spreaded_image * image
+        spreaded_image = np.zeros([2*a for a in image.shape])
+        spreaded_image[::2,::2]=image
         # 3 - 4 Vertical and Horizontal interpolation
         kernel = np.array([[-1, 0, 4, 0, -11, 0, 40, 64, 40, 0, -11, 0, 4, 0, -1]]) / 64
         kernel2D = kernel.T @ kernel
         spreaded_image = signal.convolve2d(spreaded_image, kernel2D, mode="same")
         # 5 Round the result to integers
-        spreaded_image = spreaded_image[:spreaded_image.shape[0]-8, : spreaded_image.shape[1]-8]
         spreaded_image = np.rint(spreaded_image).astype(int)
-        return spreaded_image
+        return spreaded_image[8:-8,8:-8]
 
     def store_mv(self, x: int, y: int, mx: int, my: int):
         yb = y // self.blocksize + 1
