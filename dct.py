@@ -34,12 +34,13 @@ class Transformation:
 
     def backward_transform(self, block, prediction_mode):
         if prediction_mode == PredictionMode.PLANAR_PREDICTION:
-            return np.matmul(np.matmul(self.dst_matrix_inverse,block),self.dst_matrix)
+            rec_residual = np.matmul(np.matmul(self.dst_matrix_inverse,block),self.dst_matrix)
         elif prediction_mode == PredictionMode.DC_PREDICTION:
-            return idct(idct(block, axis=0, norm='ortho'), axis=1, norm='ortho')
+            rec_residual = idct(idct(block, axis=0, norm='ortho'), axis=1, norm='ortho')
         elif prediction_mode == PredictionMode.HORIZONTAL_PREDICTION:
-            return np.matmul(idct(block, axis=0, norm='ortho'),self.dst_matrix)
+            rec_residual = np.matmul(idct(block, axis=0, norm='ortho'),self.dst_matrix)
         elif prediction_mode == PredictionMode.VERTICAL_PREDICTION:
-            return idct(np.matmul(self.dst_matrix_inverse,block), axis=1, norm='ortho')
+            rec_residual = idct(np.matmul(self.dst_matrix_inverse,block), axis=1, norm='ortho')
+        return np.rint(rec_residual).astype(int)
 
 

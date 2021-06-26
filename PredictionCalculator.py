@@ -32,7 +32,7 @@ class PredictionCalculator:
         spreaded_image = signal.convolve2d(spreaded_image, kernel.T, mode="same")
         spreaded_image = signal.convolve2d(spreaded_image, kernel, mode="same")
         # 5 Round the result to integers
-        spreaded_image = np.rint(spreaded_image).astype(int)
+        spreaded_image = np.clip(np.rint(spreaded_image), 0, 255).astype(int)
         return spreaded_image[8:-8,8:-8]
 
     def store_mv(self, x: int, y: int, mx: int, my: int):

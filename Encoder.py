@@ -346,7 +346,7 @@ class Encoder:
         rec_block = self.reconstruct_block(pred_block, q_idx_block, x, y, pred_mode, update_rec_image=False)
 
         # Distortion calculation using SSD.
-        distortion = np.sum(np.square(org_block - rec_block))
+        distortion = np.sum(np.square(np.subtract(org_block, rec_block, dtype='int')))
 
         if pred_mode == PredictionMode.PLANAR_PREDICTION or pred_mode == PredictionMode.DC_PREDICTION:
             # diagonal scan
@@ -386,7 +386,7 @@ class Encoder:
                                            update_rec_image=False)  # set predMode=DC for using correct transform
 
         # Distortion calculation using SSD.
-        distortion = np.sum(np.square(org_block - rec_block))
+        distortion = np.sum(np.square(np.subtract(org_block, rec_block, dtype='int')))
 
         # diagonal scan
         scanned_block = sort_diagonal(q_idx_block)
