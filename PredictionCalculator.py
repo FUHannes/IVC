@@ -20,6 +20,9 @@ class PredictionCalculator:
         self.blocksize = blocksize
         self.mv = np.zeros([self.coded_height // self.blocksize + 1,
                             self.coded_width // self.blocksize + 2, 2], dtype=np.int)
+        if self.interpolated_ref_image is not None:
+            self.max_xh = self.interpolated_ref_image.shape[1] - (2 * self.blocksize - 1)
+            self.max_yh = self.interpolated_ref_image.shape[0] - (2 * self.blocksize - 1)
 
     def half_sample_interpolation(self, image: np.ndarray) -> np.ndarray:
         # 1. Pad the (already padded) image with another 4 samples at each side (using sample repetition)
@@ -109,8 +112,6 @@ class PredictionCalculator:
         return pred_block
 
     def get_inter_prediction(self, x: int, y: int, mx: int, my: int):
-        xref = max(0,
-                   min(x + mx + self.blocksize, self.ref_image.shape[1] - self.blocksize))  # clip to padded image size
-        yref = max(0,
-                   min(y + my + self.blocksize, self.ref_image.shape[0] - self.blocksize))  # clip to padded image size
-        return self.ref_image[yref:yref + self.blocksize, xref:xref + self.blocksize]
+        xh = max(0, min(2 * (x + self.blocksize) + mx, self.max_xh))  # clip to image area
+        yh = max(0, min(2 * (y + self.blocksize) + my, self.max_yh))  # clip to image area
+        return self.interpolated_ref_image[yh:yh + 2*self.blocksize:2, xh:xh + 2*self.blocksize:2]

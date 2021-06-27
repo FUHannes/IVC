@@ -112,7 +112,7 @@ class Encoder:
 
     def calculate_lookup_table(self):
         rmv = []
-        for i in range(2 * self.search_range + 1):
+        for i in range(4 * self.search_range + 3):
             rmv.append(2*bitsUsed(i) +1)
         return rmv
 
@@ -244,13 +244,21 @@ class Encoder:
                 search_block = self.padded_rec_img[yi + _my + self.block_size:yi + _my + 2 * self.block_size,
                            xi + _mx + self.block_size:xi + _mx + 2 * self.block_size]
                 _sad = self.sum_absolute_differences(search_block, current_block)
-                diff_mx = abs(_mx - mxp)
-                diff_my = abs(_my - myp)
+                diff_mx = abs(2*_mx - mxp) # pred is half-sample accurate
+                diff_my = abs(2*_my - myp) # while mx/my are sample accurate
                 lagrangian_cost = _sad + lagrange_root * (self.rmv[diff_mx] +self.rmv[diff_my])
                 if lagrangian_cost < minimum_lagrangian_cost:
                     minimum_lagrangian_cost = lagrangian_cost
                     mx = _mx
                     my = _my
+
+        # use half-sample precise motion vectors
+        mx *= 2
+        my *= 2
+
+        # half-sample refinement (for now: random)
+        mx += random.randint(-1, 1)
+        my += random.randint(-1, 1)
 
         return mx, my
 
