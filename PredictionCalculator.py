@@ -40,6 +40,15 @@ class PredictionCalculator:
         xb = x // self.blocksize + 1
         self.mv[yb, xb] = mx, my
 
+    def get_start_mv_candidates(self, x, y):
+        yb = y // self.blocksize + 1
+        xb = x // self.blocksize + 1
+        mxa, mya = self.mv[yb, xb - 1]  # left block
+        mxb, myb = self.mv[yb - 1, xb]  # block above
+        mxc, myc = self.mv[yb - 1, xb + 1]  # block above-right
+        mxd, myd = self.mv[yb - 1, xb - 1] # block above-left
+        return np.array([(mxa, mya), (mxb, myb), (mxc, myc), (mxd, myd)])
+
     def get_mv_pred(self, x: int, y: int):
         yb = y // self.blocksize + 1
         xb = x // self.blocksize + 1

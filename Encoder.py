@@ -214,8 +214,8 @@ class Encoder:
             for xi in range(0, self.image_width + self.pad_width, self.block_size):
                 mxp, myp = self.pred_calc.get_mv_pred(xi, yi)
 
-                mx, my = self.estimate_motion_vector(xi, yi, mxp, myp, lagrange_root)
-
+                #mx, my = self.estimate_motion_vector(xi, yi, mxp, myp, lagrange_root)
+                mx, my = self.do_log_search(xi, yi, mxp, myp, lagrange_root)
                 # mode decision between inter and dc mode
                 inter_mode_cost = self.test_encode_block_inter_pic(xi, yi, 1, mx, my, mxp, myp, lagrange_multiplier)
                 dc_mode_cost = self.test_encode_block_inter_pic(xi, yi, 0, 0, 0, 0, 0, lagrange_multiplier)
@@ -226,6 +226,66 @@ class Encoder:
 
         # terminate arithmetic codeword (but keep output bitstream alive)
         self.entropyEncoder.terminate()
+
+    def find_start_mv(self, xi, yi, pred_x, pred_y):
+        candidates = self.pred_calc.get_start_mv_candidates(xi, yi)
+        np.append(candidates, (pred_x, pred_y))
+        current_block = self.image[yi:yi + self.block_size, xi:xi + self.block_size]
+
+        start_mv = min(candidates, key = lambda mv: self.sum_absolute_differences(current_block,
+            self.padded_rec_img[yi + mv[1] + self.block_size:yi + mv[1] + 2 * self.block_size, xi + mv[0] + self.block_size:xi + mv[0] + 2 * self.block_size]))
+
+        return start_mv
+
+    def perf_log_step(self, current, center_x, center_y, diamond_size, lagrange_root, pred_x, pred_y):
+        
+        if diamond_size < 1:
+            return (center_x, center_y)
+        
+        lx = center_x - diamond_size * self.block_size
+        ly = center_y
+
+        rx = center_x + diamond_size * self.block_size
+        ry = center_y 
+
+        tx = center_x
+        ty = center_y + diamond_size * self.block_size
+
+        bx = center_x
+        by = center_y - diamond_size * self.block_size
+
+        candidates = [(lx, ly), (rx, ry), (tx, ty), (bx, by), (center_x, center_y)]
+        candidates = filter(lambda coords: coords[0] >= self.mx_min and coords [0] <= self.mx_max and coords[1] >= self.my_min and coords[1] <= self.my_max, candidates)
+        min_cost = min(candidates, key = lambda coords: self.get_lagrangian_cost(coords, pred_x, pred_y, current, lagrange_root))
+        
+        if min_cost[0] == center_x and min_cost[1] == center_y:
+            diamond_size -= 1
+
+        return self.perf_log_step(current, min_cost[0], min_cost[1], diamond_size, lagrange_root, pred_x, pred_y)
+    
+    def get_lagrangian_cost(self, cand_coords, pred_x, pred_y, curr_block, lagrange_root):
+        cand_block = self.padded_rec_img[cand_coords[1] : cand_coords[1] + self.block_size,
+            cand_coords[0] : cand_coords[0] + self.block_size]
+
+        _sad = self.sum_absolute_differences(cand_block, curr_block)
+        diff_mx = abs(cand_coords[0] - pred_x)
+        diff_my = abs(cand_coords[1] - pred_y)
+        lagrangian_cost = _sad + lagrange_root * (self.rmv[diff_mx] + self.rmv[diff_my])
+
+        return lagrangian_cost
+
+    def do_log_search(self, xi, yi, mxp, myp, lagrange_root):
+
+        self.mx_min = max(-self.search_range, -(xi + self.block_size))
+        self.my_min = max(-self.search_range, -(yi + self.block_size))
+        self.mx_max = min(self.search_range, self.padded_rec_img.shape[1] - xi - 2 * self.block_size)
+        self.my_max = min(self.search_range, self.padded_rec_img.shape[0] - yi - 2 * self.block_size)
+
+        current_block = self.image[yi:yi + self.block_size, xi:xi + self.block_size]
+
+        start = self.find_start_mv(xi, yi, mxp, myp)
+
+        return self.perf_log_step(current_block, start[0], start[1], 2, lagrange_root, mxp, myp)
 
     def estimate_motion_vector(self, xi, yi, mxp, myp, lagrange_root):
         minimum_lagrangian_cost = float('inf')
