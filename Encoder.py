@@ -217,7 +217,7 @@ class Encoder:
                 if self.fast_search:
                     mx, my = self.do_log_search(xi, yi, mxp, myp, lagrange_root)
                 else:
-                     mx, my = self.estimate_motion_vector(xi, yi, mxp, myp, lagrange_root)
+                    mx, my = self.estimate_motion_vector(xi, yi, mxp, myp, lagrange_root)
                 # mode decision between inter and dc mode
                 inter_mode_cost = self.test_encode_block_inter_pic(xi, yi, 1, mx, my, mxp, myp, lagrange_multiplier)
                 dc_mode_cost = self.test_encode_block_inter_pic(xi, yi, 0, 0, 0, 0, 0, lagrange_multiplier)
