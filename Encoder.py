@@ -59,7 +59,7 @@ def sort_diagonal(mat: np.ndarray) -> np.ndarray:
 
 class Encoder:
 
-    def __init__(self, input_path, output_path, block_size, QP, reconstruction_path=None):
+    def __init__(self, input_path, output_path, block_size, QP, fast_search, reconstruction_path=None):
         self.input_path = input_path
         self.output_path = output_path
         self.block_size = block_size
@@ -74,6 +74,7 @@ class Encoder:
         self.transformation = Transformation(block_size)
         self.search_range = 0
         self.rmv = []
+        self.fast_search = fast_search
 
     def init_obitstream(self, img_height, img_width, path):
         outputBitstream = OBitstream(path)
@@ -213,8 +214,10 @@ class Encoder:
         for yi in range(0, self.image_height + self.pad_height, self.block_size):
             for xi in range(0, self.image_width + self.pad_width, self.block_size):
                 mxp, myp = self.pred_calc.get_mv_pred(xi, yi)
-                #mx, my = self.estimate_motion_vector(xi, yi, mxp, myp, lagrange_root)
-                mx, my = self.do_log_search(xi, yi, mxp, myp, lagrange_root)
+                if self.fast_search:
+                    mx, my = self.do_log_search(xi, yi, mxp, myp, lagrange_root)
+                else:
+                     mx, my = self.estimate_motion_vector(xi, yi, mxp, myp, lagrange_root)
                 # mode decision between inter and dc mode
                 inter_mode_cost = self.test_encode_block_inter_pic(xi, yi, 1, mx, my, mxp, myp, lagrange_multiplier)
                 dc_mode_cost = self.test_encode_block_inter_pic(xi, yi, 0, 0, 0, 0, 0, lagrange_multiplier)
