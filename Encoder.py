@@ -275,7 +275,7 @@ class Encoder:
         
         return self.perf_log_step(current_x, current_y, min_cost_mv[0], min_cost_mv[1], diamond_size, lagrange_root, pred_x_mv, pred_y_mv)
     
-    def get_lagrangian_cost(self, cand_mv, pred_x, pred_y, current_x, current_y, lagrange_root):
+    def get_lagrangian_cost(self, cand_mv, pred_x_mv, pred_y_mv, current_x, current_y, lagrange_root):
 
         cand_block = self.padded_rec_img[current_y + cand_mv[1]  + self.block_size : current_y + cand_mv[1] +  2 * self.block_size,
             current_x + cand_mv[0] + self.block_size : current_x + cand_mv[0] + 2 * self.block_size]
@@ -283,8 +283,8 @@ class Encoder:
         curr_block = self.image[current_y : current_y + self.block_size, current_x : current_x + self.block_size]
 
         _sad = self.sum_absolute_differences(cand_block, curr_block)
-        diff_mx = abs(cand_mv[0] - pred_x)
-        diff_my = abs(cand_mv[1] - pred_y)
+        diff_mx = abs(cand_mv[0] - pred_x_mv)
+        diff_my = abs(cand_mv[1] - pred_y_mv)
         lagrangian_cost = _sad + lagrange_root * (self.rmv[diff_mx] + self.rmv[diff_my])
 
         return lagrangian_cost
