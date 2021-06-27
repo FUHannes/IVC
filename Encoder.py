@@ -213,7 +213,6 @@ class Encoder:
         for yi in range(0, self.image_height + self.pad_height, self.block_size):
             for xi in range(0, self.image_width + self.pad_width, self.block_size):
                 mxp, myp = self.pred_calc.get_mv_pred(xi, yi)
-
                 #mx, my = self.estimate_motion_vector(xi, yi, mxp, myp, lagrange_root)
                 mx, my = self.do_log_search(xi, yi, mxp, myp, lagrange_root)
                 # mode decision between inter and dc mode
@@ -227,65 +226,79 @@ class Encoder:
         # terminate arithmetic codeword (but keep output bitstream alive)
         self.entropyEncoder.terminate()
 
-    def find_start_mv(self, xi, yi, pred_x, pred_y):
+    def find_start_mv(self, xi, yi, pred_x_mv, pred_y_mv, lagrange_root):
         candidates = self.pred_calc.get_start_mv_candidates(xi, yi)
-        np.append(candidates, (pred_x, pred_y))
-        current_block = self.image[yi:yi + self.block_size, xi:xi + self.block_size]
 
-        start_mv = min(candidates, key = lambda mv: self.sum_absolute_differences(current_block,
-            self.padded_rec_img[yi + mv[1] + self.block_size:yi + mv[1] + 2 * self.block_size, xi + mv[0] + self.block_size:xi + mv[0] + 2 * self.block_size]))
+        # TODO: Why are these so often (0, 0)?
+        candidates = np.append(candidates, [(pred_x_mv, pred_y_mv)], axis=0)
+        start_mv = min(candidates, key = lambda mv: self.get_lagrangian_cost(mv, pred_x_mv, pred_y_mv, xi, yi, lagrange_root))
 
         return start_mv
 
-    def perf_log_step(self, current, center_x, center_y, diamond_size, lagrange_root, pred_x, pred_y):
+    def perf_log_step(self, current_x, current_y, center_x_mv, center_y_mv, diamond_size, lagrange_root, pred_x_mv, pred_y_mv):
         
         if diamond_size < 1:
-            return (center_x, center_y)
+            return (center_x_mv, center_y_mv)
         
-        lx = center_x - diamond_size * self.block_size
-        ly = center_y
+        # Left motion vector
+        lx_mv = center_x_mv - diamond_size  
+        ly_mv = center_y_mv
 
-        rx = center_x + diamond_size * self.block_size
-        ry = center_y 
+        # Right motion vector
+        rx_mv = center_x_mv + diamond_size
+        ry_mv = center_y_mv 
 
-        tx = center_x
-        ty = center_y + diamond_size * self.block_size
+        # Top motion vector
+        tx_mv = center_x_mv
+        ty_mv = center_y_mv + diamond_size
 
-        bx = center_x
-        by = center_y - diamond_size * self.block_size
+        # Bottom motion vector
+        bx_mv = center_x_mv
+        by_mv = center_y_mv - diamond_size
 
-        candidates = [(lx, ly), (rx, ry), (tx, ty), (bx, by), (center_x, center_y)]
-        candidates = filter(lambda coords: coords[0] >= self.mx_min and coords [0] <= self.mx_max and coords[1] >= self.my_min and coords[1] <= self.my_max, candidates)
-        min_cost = min(candidates, key = lambda coords: self.get_lagrangian_cost(coords, pred_x, pred_y, current, lagrange_root))
+        candidates = [(lx_mv, ly_mv), (rx_mv, ry_mv), (tx_mv, ty_mv), (bx_mv, by_mv), (center_x_mv, center_y_mv)]
+
+        candidates = list(filter(lambda mvs: mvs[0] >= self.mx_min and mvs [0] <= self.mx_max and mvs[1] >= self.my_min and mvs[1] <= self.my_max, candidates))
         
-        if min_cost[0] == center_x and min_cost[1] == center_y:
+        min_cost = float('inf')
+
+        for mv in candidates:
+            cost = self.get_lagrangian_cost(mv, pred_x_mv, pred_y_mv, current_x, current_y, lagrange_root)
+            if cost < min_cost:
+                min_cost = cost
+                min_cost_mv = mv
+            if cost == min_cost and mv[0] == center_x_mv and mv[1] == center_y_mv:
+                min_cost_mv = (center_x_mv, center_y_mv)
+
+        if min_cost_mv[0] == center_x_mv and min_cost_mv[1] == center_y_mv:
             diamond_size -= 1
-
-        return self.perf_log_step(current, min_cost[0], min_cost[1], diamond_size, lagrange_root, pred_x, pred_y)
+        
+        return self.perf_log_step(current_x, current_y, min_cost_mv[0], min_cost_mv[1], diamond_size, lagrange_root, pred_x_mv, pred_y_mv)
     
-    def get_lagrangian_cost(self, cand_coords, pred_x, pred_y, curr_block, lagrange_root):
-        cand_block = self.padded_rec_img[cand_coords[1] : cand_coords[1] + self.block_size,
-            cand_coords[0] : cand_coords[0] + self.block_size]
+    def get_lagrangian_cost(self, cand_mv, pred_x, pred_y, current_x, current_y, lagrange_root):
+
+        cand_block = self.padded_rec_img[current_y + cand_mv[1]  + self.block_size : current_y + cand_mv[1] +  2 * self.block_size,
+            current_x + cand_mv[0] + self.block_size : current_x + cand_mv[0] + 2 * self.block_size]
+
+        curr_block = self.image[current_y : current_y + self.block_size, current_x : current_x + self.block_size]
 
         _sad = self.sum_absolute_differences(cand_block, curr_block)
-        diff_mx = abs(cand_coords[0] - pred_x)
-        diff_my = abs(cand_coords[1] - pred_y)
+        diff_mx = abs(cand_mv[0] - pred_x)
+        diff_my = abs(cand_mv[1] - pred_y)
         lagrangian_cost = _sad + lagrange_root * (self.rmv[diff_mx] + self.rmv[diff_my])
 
         return lagrangian_cost
 
-    def do_log_search(self, xi, yi, mxp, myp, lagrange_root):
+    def do_log_search(self, xi, yi, pred_x_mv, pred_y_mv, lagrange_root):
+
+        start = self.find_start_mv(xi, yi, pred_x_mv, pred_y_mv, lagrange_root)
 
         self.mx_min = max(-self.search_range, -(xi + self.block_size))
         self.my_min = max(-self.search_range, -(yi + self.block_size))
         self.mx_max = min(self.search_range, self.padded_rec_img.shape[1] - xi - 2 * self.block_size)
         self.my_max = min(self.search_range, self.padded_rec_img.shape[0] - yi - 2 * self.block_size)
 
-        current_block = self.image[yi:yi + self.block_size, xi:xi + self.block_size]
-
-        start = self.find_start_mv(xi, yi, mxp, myp)
-
-        return self.perf_log_step(current_block, start[0], start[1], 2, lagrange_root, mxp, myp)
+        return self.perf_log_step(xi, yi, start[0], start[1], 2, lagrange_root, pred_x_mv, pred_y_mv)
 
     def estimate_motion_vector(self, xi, yi, mxp, myp, lagrange_root):
         minimum_lagrangian_cost = float('inf')
