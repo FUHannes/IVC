@@ -229,7 +229,6 @@ class Encoder:
     def find_start_mv(self, xi, yi, pred_x_mv, pred_y_mv, lagrange_root):
         candidates = self.pred_calc.get_start_mv_candidates(xi, yi)
 
-        # TODO: Why are these so often (0, 0)?
         candidates = np.append(candidates, [(pred_x_mv, pred_y_mv)], axis=0)
         start_mv = min(candidates, key = lambda mv: self.get_lagrangian_cost(mv, pred_x_mv, pred_y_mv, xi, yi, lagrange_root))
 
