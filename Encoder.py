@@ -231,7 +231,7 @@ class Encoder:
     def find_start_mv(self, xi, yi, pred_x_mv, pred_y_mv, lagrange_root):
         candidates = self.pred_calc.get_start_mv_candidates(xi, yi)
         candidates = np.append(candidates, [(pred_x_mv, pred_y_mv)], axis=0)
-        candidates //= 2  # round candidates to integer precision
+        candidates = np.sign(candidates) * (np.abs(candidates) // 2)  # round candidates to integer precision (towards zero)
 
         start_mv = min(candidates, key = lambda mv: self.get_lagrangian_cost(mv, pred_x_mv, pred_y_mv, xi, yi, lagrange_root))
 
@@ -260,7 +260,7 @@ class Encoder:
 
         candidates = [(lx_mv, ly_mv), (rx_mv, ry_mv), (tx_mv, ty_mv), (bx_mv, by_mv), (center_x_mv, center_y_mv)]
 
-        candidates = list(filter(lambda mvs: mvs[0] >= self.mx_min and mvs [0] <= self.mx_max and mvs[1] >= self.my_min and mvs[1] <= self.my_max, candidates))
+        candidates = list(filter(lambda mvs: mvs[0] >= self.mx_min and mvs[0] <= self.mx_max and mvs[1] >= self.my_min and mvs[1] <= self.my_max, candidates))
         
         min_cost = float('inf')
 
