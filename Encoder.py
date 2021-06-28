@@ -310,7 +310,7 @@ class Encoder:
             int_mx, int_my = self.estimate_integer_motion_vector_full_search(xi, yi, mxp, myp, lagrange_root)
 
         # half-sample refinement
-        mx, my = self.half_sample_refinement(xi, yi, int_mx, int_my, lagrange_root)
+        mx, my = self.half_sample_refinement(xi, yi, int_mx, int_my, mxp, myp, lagrange_root)
 
         return mx, my
 
@@ -341,30 +341,26 @@ class Encoder:
 
         return mx, my
  
-    def half_sample_refinement(self, xi, yi, integer_mx, integer_my, lagrange_root):
+    def half_sample_refinement(self, xi, yi, integer_mx, integer_my, mxp, myp, lagrange_root):
         minimum_lagrangian_cost = float('inf')
 
         int_subsample_mx = 2 * integer_mx
         int_subsample_my = 2 * integer_my
 
-        subsample_xi = 2 * xi
-        subsample_yi = 2 * yi
+        mx_min = int_subsample_mx - 1
+        my_min = int_subsample_my - 1
+        mx_max = int_subsample_mx + 2
+        my_max = int_subsample_my + 2
 
-        mx_min = int_subsample_mx -1
-        my_min = int_subsample_my -1
-        mx_max = int_subsample_mx +1
-        my_max = int_subsample_my +1
-
-        subsample_mx = 0
-        subsample_my = 0
-
-        current_block = self.pred_calc.image[yi:yi + self.block_size, xi:xi + self.block_size]
+        current_block = self.image[yi:yi + self.block_size, xi:xi + self.block_size]
         for _my in range(my_min, my_max):
             for _mx in range(mx_min, mx_max):
                 search_block = self.pred_calc.get_inter_prediction(xi, yi, _mx, _my)
                 _sad = self.sum_absolute_differences(search_block, current_block)
 
-                lagrangian_cost = _sad + lagrange_root * (self.rmv[_mx] +self.rmv[_my])
+                diff_mx = abs(_mx - mxp)
+                diff_my = abs(_my - myp)
+                lagrangian_cost = _sad + lagrange_root * (self.rmv[diff_mx] + self.rmv[diff_my])
                 if lagrangian_cost < minimum_lagrangian_cost:
                     minimum_lagrangian_cost = lagrangian_cost
                     subsample_mx = _mx
