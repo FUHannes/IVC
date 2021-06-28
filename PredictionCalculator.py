@@ -31,7 +31,8 @@ class PredictionCalculator:
         spreaded_image = np.zeros([2*a for a in image.shape])
         spreaded_image[::2,::2] = image
         # 3 - 4 Vertical and Horizontal interpolation
-        kernel = np.array([[-1, 0, 4, 0, -11, 0, 40, 64, 40, 0, -11, 0, 4, 0, -1]]) / 64
+        #kernel = np.array([[-1, 0, 4, 0, -11, 0, 40, 64, 40, 0, -11, 0, 4, 0, -1]]) / 64
+        kernel = np.array([[32, 64, 32]]) / 64
         spreaded_image = signal.convolve2d(spreaded_image, kernel.T, mode="same")
         spreaded_image = signal.convolve2d(spreaded_image, kernel, mode="same")
         # 5 Round the result to integers
