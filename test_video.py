@@ -29,6 +29,7 @@ VIDEO_FRAME_RATE = 50
 DEFAULT_BLOCK_SIZE = 16
 DEFAULT_NO_OF_FRAMES = 30
 DEFAULT_SEARCH_RANGE = 8
+USE_FAST_SEARCH = True
 
 def generate_data(filename, version, block_size, num_frames, search_range):
     input_path = os.path.join(VIDEO_ORIGINAL_PATH, filename + VIDEO_SUFFIX)
@@ -52,7 +53,7 @@ def generate_data(filename, version, block_size, num_frames, search_range):
     df = pd.DataFrame(columns=['bpp', 'db'])
 
     for index, quality in enumerate([8,12,16,20,24]):
-        enc = Encoder(input_path, bitstream_path, block_size, quality)
+        enc = Encoder(input_path, bitstream_path, block_size, quality, USE_FAST_SEARCH)
         enc.encode_video(VIDEO_WIDTH, VIDEO_HEIGHT, num_frames, search_range)
         dec = Decoder(bitstream_path, output_path, pgm=False)
         dec.decode_all_frames()

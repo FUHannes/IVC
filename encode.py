@@ -45,10 +45,16 @@ def main():
                         default=8,
                         dest='search_range',
                         type=int)
+
+    parser.add_argument('-f', '--fast', 
+                        help='Use logarithmic motion vector search',
+                        dest='use_fast',
+                        action='store_true')
+
     args = parser.parse_args()
 
     start_time = time.process_time()  # benchmarking speed
-    enc = Encoder(args.input, args.bitstream, args.blocksize, args.qp, args.reconstruction_path)
+    enc = Encoder(args.input, args.bitstream, args.blocksize, args.qp, args.use_fast, args.reconstruction_path)
     if args.video_size is None:
         enc.encode_image()
     else:
