@@ -70,7 +70,6 @@ class Encoder:
         self.entropyEncoder = None
         self.reconstruction_path = reconstruction_path
         self.raw_video = False
-        self.est_bits = 0
         self.transformation = Transformation(block_size)
         self.search_range = 0
         self.rmv = []
@@ -105,8 +104,6 @@ class Encoder:
 
         # terminate bitstream
         self.outputBitstream.terminate()
-        print(f'Estimated # of bits {self.est_bits}')
-        print(f'# of bits in bitstream without header {self.outputBitstream.bits_written - 56}')
         if self.reconstruction_path:
             self.image_reconstructed_array.append(self.image_reconstructed)
             self.write_out()
@@ -142,8 +139,6 @@ class Encoder:
 
         # terminate bitstream
         self.outputBitstream.terminate()
-        print(f'Estimated # of bits {self.est_bits}')
-        print(f'# of bits in bitstream without header {self.outputBitstream.bits_written - 56}')
         if self.reconstruction_path:
             self.write_out()
 
@@ -176,13 +171,15 @@ class Encoder:
                 # mode decision
                 cost_mode_tuples = []
                 for pred_mode in PredictionMode:
-                    cost_mode_tuples.append(
-                        (self.test_encode_block_intra_pic(xi, yi, pred_mode, lagrange_multiplier), pred_mode))
+                    cost, rec_block, qidx_list = self.test_encode_block_intra_pic(xi, yi, pred_mode, lagrange_multiplier)
+                    cost_mode_tuples.append( (cost, pred_mode, rec_block, qidx_list) )
                 min_cost_mode = min(cost_mode_tuples, key=lambda t: t[0])
-                optimal_pred_mode = min_cost_mode[1]
+                pred_mode = min_cost_mode[1]
+                rec_block = min_cost_mode[2]
+                qidx_list = min_cost_mode[3]
 
                 # encoding using selected mode
-                self.encode_block_intra_pic(xi, yi, optimal_pred_mode)
+                self.encode_block_intra_pic(xi, yi, rec_block, qidx_list, pred_mode)
 
         if show_frame_progress:
             progress_bar.close()
@@ -218,12 +215,12 @@ class Encoder:
                 mx, my = self.estimate_motion_vector(xi, yi, mxp, myp, lagrange_root)
 
                 # mode decision between inter and dc mode
-                inter_mode_cost = self.test_encode_block_inter_pic(xi, yi, 1, mx, my, mxp, myp, lagrange_multiplier)
-                dc_mode_cost = self.test_encode_block_inter_pic(xi, yi, 0, 0, 0, 0, 0, lagrange_multiplier)
+                inter_mode_cost, inter_rec, inter_qidx = self.test_encode_block_inter_pic(lagrange_multiplier, xi, yi, 1, mx, my, mxp, myp)
+                dc_mode_cost, dc_rec, dc_qidx = self.test_encode_block_inter_pic(lagrange_multiplier, xi, yi, 0)
                 if inter_mode_cost < dc_mode_cost:
-                    self.encode_block_inter_pic(xi, yi, 1, mx, my, mxp, myp)
+                    self.encode_block_inter_pic(xi, yi, inter_rec, inter_qidx, 1, mx, my, mxp, myp)
                 else:
-                    self.encode_block_inter_pic(xi, yi, 0, 0, 0, 0, 0)
+                    self.encode_block_inter_pic(xi, yi, dc_rec, dc_qidx, 0)
 
         # terminate arithmetic codeword (but keep output bitstream alive)
         self.entropyEncoder.terminate()
@@ -372,77 +369,33 @@ class Encoder:
         # Compute the sum of the absolute differences
         return np.sum(np.abs(np.subtract(a, b, dtype=np.int)))
 
-    def reconstruct_block(self, pred_block, q_idx_block, x, y, prediction_mode, update_rec_image=True):
+    def reconstruct_block(self, pred_block, q_idx_block, x, y, prediction_mode):
         # reconstruct transform coefficients from quantization indexes
         recBlock = q_idx_block * self.qs
         # invoke 2D Transform inverse
         recBlock = self.transformation.backward_transform(recBlock, prediction_mode)
         # invoke prediction function (see 4.3 DC prediction)
         recBlock += pred_block
-
         recBlock = np.clip(recBlock, 0, 255).astype('uint8')
-
-        if update_rec_image:
-            self.image_reconstructed[y:y + self.block_size, x:x + self.block_size] = recBlock
-
         return recBlock
 
     # encode block of current picture
-    def encode_block_intra_pic(self, x: int, y: int, pred_mode: PredictionMode):
-        # accessor for current block
-        orgBlock = self.image[y:y + self.block_size, x:x + self.block_size]
-        # prediction
-        predBlock = self.pred_calc.get_prediction(x, y, pred_mode)
-        predError = orgBlock.astype('int') - predBlock
-        # dct
-        transCoeff = self.transformation.forward_transform(predError, pred_mode)
-        # quantization
-        qIdxBlock: np.ndarray = (np.sign(transCoeff) * np.floor((np.abs(transCoeff) / self.qs) + 0.4)).astype('int')
-        # reconstruction
-        self.reconstruct_block(predBlock, qIdxBlock, x, y, pred_mode)
-
-        if pred_mode == PredictionMode.PLANAR_PREDICTION or pred_mode == PredictionMode.DC_PREDICTION:
-            # diagonal scan
-            scanned_block = sort_diagonal(qIdxBlock)
-        elif pred_mode == PredictionMode.HORIZONTAL_PREDICTION:
-            # vertical scan: Transposed block
-            scanned_block = qIdxBlock.T
-        elif pred_mode == PredictionMode.VERTICAL_PREDICTION:
-            # horizontal scan: unchanged block
-            scanned_block = qIdxBlock
-
-        # Sum estimated bits per block
-        self.est_bits += self.entropyEncoder.est_block_bits_intra_pic(pred_mode, scanned_block)
+    def encode_block_intra_pic(self, x: int, y: int, rec_block, qidx_list, pred_mode: PredictionMode):
         # actual entropy encoding
-        self.entropyEncoder.write_block_intra_pic(scanned_block, pred_mode)
+        self.entropyEncoder.write_block_intra_pic(qidx_list, pred_mode)
+
+        # reconstruction
+        self.image_reconstructed[y:y + self.block_size, x:x + self.block_size] = rec_block
 
     # encode block of current picture
-    def encode_block_inter_pic(self, x: int, y: int, inter_flag: int, mx: int, my: int, mxp: int, myp: int):
-        # accessor for current block
-        orgBlock = self.image[y:y + self.block_size, x:x + self.block_size]
-
-        # prediction
-        if inter_flag:
-            predBlock = self.pred_calc.get_inter_prediction(x, y, mx, my)
-            self.pred_calc.store_mv(x, y, mx, my)
-        else:
-            predBlock = self.pred_calc.get_prediction(x, y, PredictionMode.DC_PREDICTION)
-
-        predError = orgBlock.astype('int') - predBlock
-        # dct
-        transCoeff = self.transformation.forward_transform(predError,
-                                                           PredictionMode.DC_PREDICTION)  # set predMode=DC for using correct transform
-        # quantization
-        qIdxBlock: np.ndarray = (np.sign(transCoeff) * np.floor((np.abs(transCoeff) / self.qs) + 0.4)).astype('int')
-        # reconstruction
-        self.reconstruct_block(predBlock, qIdxBlock, x, y,
-                               PredictionMode.DC_PREDICTION)  # set predMode=DC for using correct transform
-        # diagonal scanning
-        scanned_block = sort_diagonal(qIdxBlock)
-        # Sum estimated bits per block
-        self.est_bits += self.entropyEncoder.est_block_bits_inter_pic(scanned_block, inter_flag, mx - mxp, my - myp)
+    def encode_block_inter_pic(self, x: int, y: int, rec_block, qidx_list, inter_flag: int, mx: int = 0, my: int = 0, mxp: int = 0, myp: int = 0):
         # actual entropy encoding
-        self.entropyEncoder.write_block_inter_pic(scanned_block, inter_flag, mx - mxp, my - myp)
+        self.entropyEncoder.write_block_inter_pic(qidx_list, inter_flag, mx - mxp, my - myp)
+
+        # reconstruction and motion vector storage
+        self.image_reconstructed[y:y + self.block_size, x:x + self.block_size] = rec_block
+        if inter_flag:
+            self.pred_calc.store_mv(x, y, mx, my)
 
     # Calculate lagrangian cost for given block and prediction mode.
     def test_encode_block_intra_pic(self, x: int, y: int, pred_mode: PredictionMode, lagrange_multiplier):
@@ -457,7 +410,7 @@ class Encoder:
 
         q_idx_block = (np.sign(trans_coeff) * np.floor((np.abs(trans_coeff) / self.qs) + 0.4)).astype('int')
 
-        rec_block = self.reconstruct_block(pred_block, q_idx_block, x, y, pred_mode, update_rec_image=False)
+        rec_block = self.reconstruct_block(pred_block, q_idx_block, x, y, pred_mode)
 
         # Distortion calculation using SSD.
         distortion = np.sum(np.square(np.subtract(org_block, rec_block, dtype='int')))
@@ -475,10 +428,10 @@ class Encoder:
         bitrate_estimation = self.entropyEncoder.est_block_bits_intra_pic(pred_mode, scanned_block)
 
         # Return Lagrangian cost.
-        return distortion + lagrange_multiplier * bitrate_estimation
+        return distortion + lagrange_multiplier * bitrate_estimation, rec_block, scanned_block
 
     # Calculate lagrangian cost for given block: Extent and use later
-    def test_encode_block_inter_pic(self, x: int, y: int, inter_flag: int, mx: int, my: int, mxp: int, myp: int, lagrange_multiplier):
+    def test_encode_block_inter_pic(self, lagrange_multiplier, x: int, y: int, inter_flag: int, mx: int = 0, my: int = 0, mxp: int = 0, myp: int = 0):
         # Accessor for current block.
         org_block = self.image[y:y + self.block_size, x:x + self.block_size]
 
@@ -496,8 +449,7 @@ class Encoder:
 
         q_idx_block = (np.sign(trans_coeff) * np.floor((np.abs(trans_coeff) / self.qs) + 0.4)).astype('int')
 
-        rec_block = self.reconstruct_block(pred_block, q_idx_block, x, y, PredictionMode.DC_PREDICTION,
-                                           update_rec_image=False)  # set predMode=DC for using correct transform
+        rec_block = self.reconstruct_block(pred_block, q_idx_block, x, y, PredictionMode.DC_PREDICTION)
 
         # Distortion calculation using SSD.
         distortion = np.sum(np.square(np.subtract(org_block, rec_block, dtype='int')))
@@ -508,7 +460,7 @@ class Encoder:
         bitrate_estimation = self.entropyEncoder.est_block_bits_inter_pic(scanned_block, inter_flag, mx - mxp, my - myp)
 
         # Return Lagrangian cost.
-        return distortion + lagrange_multiplier * bitrate_estimation
+        return distortion + lagrange_multiplier * bitrate_estimation, rec_block, scanned_block
 
     # opening and writing a binary file
     def write_out(self):
