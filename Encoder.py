@@ -112,7 +112,7 @@ class Encoder:
 
     def calculate_lookup_table(self):
         rmv = []
-        for i in range(2 * self.search_range + 1):
+        for i in range(4 * self.search_range + 3):
             rmv.append(2*bitsUsed(i) +1)
         return rmv
 
@@ -212,8 +212,8 @@ class Encoder:
 
         for yi in range(0, self.image_height + self.pad_height, self.block_size):
             for xi in range(0, self.image_width + self.pad_width, self.block_size):
+                # estimate motion
                 mxp, myp = self.pred_calc.get_mv_pred(xi, yi)
-
                 mx, my = self.estimate_motion_vector(xi, yi, mxp, myp, lagrange_root)
 
                 # mode decision between inter and dc mode
@@ -228,6 +228,15 @@ class Encoder:
         self.entropyEncoder.terminate()
 
     def estimate_motion_vector(self, xi, yi, mxp, myp, lagrange_root):
+        # integer motion vector
+        int_mx, int_my = self.estimate_integer_motion_vector_full_search(xi, yi, mxp, myp, lagrange_root)
+
+        # half-sample refinement
+        mx, my = self.half_sample_refinement(xi, yi, int_mx, int_my, mxp, myp, lagrange_root)
+
+        return mx, my
+
+    def estimate_integer_motion_vector_full_search(self, xi, yi, mxp, myp, lagrange_root):
         minimum_lagrangian_cost = float('inf')
 
         mx = 0
@@ -244,8 +253,8 @@ class Encoder:
                 search_block = self.padded_rec_img[yi + _my + self.block_size:yi + _my + 2 * self.block_size,
                            xi + _mx + self.block_size:xi + _mx + 2 * self.block_size]
                 _sad = self.sum_absolute_differences(search_block, current_block)
-                diff_mx = abs(_mx - mxp)
-                diff_my = abs(_my - myp)
+                diff_mx = abs(2*_mx - mxp) # pred is half-sample accurate
+                diff_my = abs(2*_my - myp) # while mx/my are sample accurate
                 lagrangian_cost = _sad + lagrange_root * (self.rmv[diff_mx] +self.rmv[diff_my])
                 if lagrangian_cost < minimum_lagrangian_cost:
                     minimum_lagrangian_cost = lagrangian_cost
@@ -253,7 +262,14 @@ class Encoder:
                     my = _my
 
         return mx, my
+ 
+    def half_sample_refinement(self, xi, yi, int_mx, int_my, mxp, myp, lagrange_root):
+        mx = 2 * int_mx
+        my = 2 * int_my
+        # TODO: Ex 10.3 -> estimate half-sample refinement
 
+        return mx, my
+   
     def sum_absolute_differences(self, a, b):
         # Compute the sum of the absolute differences
         return np.sum(np.abs(np.subtract(a, b, dtype=np.int)))
