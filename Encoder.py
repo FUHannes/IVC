@@ -212,8 +212,8 @@ class Encoder:
 
         for yi in range(0, self.image_height + self.pad_height, self.block_size):
             for xi in range(0, self.image_width + self.pad_width, self.block_size):
+                # estimate motion
                 mxp, myp = self.pred_calc.get_mv_pred(xi, yi)
-
                 mx, my = self.estimate_motion_vector(xi, yi, mxp, myp, lagrange_root)
 
                 # mode decision between inter and dc mode
@@ -228,6 +228,15 @@ class Encoder:
         self.entropyEncoder.terminate()
 
     def estimate_motion_vector(self, xi, yi, mxp, myp, lagrange_root):
+        # integer motion vector
+        int_mx, int_my = self.estimate_integer_motion_vector_full_search(xi, yi, mxp, myp, lagrange_root)
+
+        # half-sample refinement
+        mx, my = self.half_sample_refinement(xi, yi, int_mx, int_my, mxp, myp, lagrange_root)
+
+        return mx, my
+
+    def estimate_integer_motion_vector_full_search(self, xi, yi, mxp, myp, lagrange_root):
         minimum_lagrangian_cost = float('inf')
 
         mx = 0
@@ -252,16 +261,15 @@ class Encoder:
                     mx = _mx
                     my = _my
 
-        # use half-sample precise motion vectors
-        mx *= 2
-        my *= 2
-
-        # half-sample refinement (for now: random)
-        mx += random.randint(-1, 1)
-        my += random.randint(-1, 1)
+        return mx, my
+ 
+    def half_sample_refinement(self, xi, yi, int_mx, int_my, mxp, myp, lagrange_root):
+        mx = 2 * int_mx
+        my = 2 * int_my
+        # TODO: Ex 10.3 -> estimate half-sample refinement
 
         return mx, my
-
+   
     def sum_absolute_differences(self, a, b):
         # Compute the sum of the absolute differences
         return np.sum(np.abs(np.subtract(a, b, dtype=np.int)))
