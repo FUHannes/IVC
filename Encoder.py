@@ -341,13 +341,33 @@ class Encoder:
 
         return mx, my
  
-    def half_sample_refinement(self, xi, yi, int_mx, int_my, mxp, myp, lagrange_root):
-        mx = 2 * int_mx
-        my = 2 * int_my
-        # TODO: Ex 10.3 -> estimate half-sample refinement
+    def half_sample_refinement(self, xi, yi, integer_mx, integer_my, mxp, myp, lagrange_root):
+        minimum_lagrangian_cost = float('inf')
 
-        return mx, my
-   
+        int_subsample_mx = 2 * integer_mx
+        int_subsample_my = 2 * integer_my
+
+        mx_min = int_subsample_mx - 1
+        my_min = int_subsample_my - 1
+        mx_max = int_subsample_mx + 2
+        my_max = int_subsample_my + 2
+
+        current_block = self.image[yi:yi + self.block_size, xi:xi + self.block_size]
+        for _my in range(my_min, my_max):
+            for _mx in range(mx_min, mx_max):
+                search_block = self.pred_calc.get_inter_prediction(xi, yi, _mx, _my)
+                _sad = self.sum_absolute_differences(search_block, current_block)
+
+                diff_mx = abs(_mx - mxp)
+                diff_my = abs(_my - myp)
+                lagrangian_cost = _sad + lagrange_root * (self.rmv[diff_mx] + self.rmv[diff_my])
+                if lagrangian_cost < minimum_lagrangian_cost:
+                    minimum_lagrangian_cost = lagrangian_cost
+                    subsample_mx = _mx
+                    subsample_my = _my
+
+        return subsample_mx, subsample_my
+
     def sum_absolute_differences(self, a, b):
         # Compute the sum of the absolute differences
         return np.sum(np.abs(np.subtract(a, b, dtype=np.int)))
