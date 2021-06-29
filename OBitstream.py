@@ -6,7 +6,6 @@ class OBitstream:
         self.file = open(filename, 'wb')
         self.buffer = 0
         self.bit_counter = 0
-        self.bits_written = 0
 
     # add bit to bitstream
     def addBit(self, bit: int):  # only 0 or 1
@@ -16,7 +15,6 @@ class OBitstream:
             if not self.file:
                 raise Exception('OBitstream: File not open')
             self.file.write(self.buffer.to_bytes(1, byteorder='big'))
-            self.bits_written += 8
             self.buffer = 0
             self.bit_counter = 0
 
@@ -33,12 +31,10 @@ class OBitstream:
             self.buffer = (self.buffer << freeBits) | int((bitPattern >> (numBits - freeBits)) & ((1 << freeBits) - 1))
             numBits -= freeBits
             self.file.write(self.buffer.to_bytes(1, byteorder='big'))
-            self.bits_written += 8
         while numBits >= 8:
             numBits -= 8
             self.buffer = int(bitPattern >> numBits) & 255
             self.file.write(self.buffer.to_bytes(1, byteorder='big'))
-            self.bits_written += 8
         self.buffer = int(bitPattern & ((1 << numBits) - 1))
         self.bit_counter = numBits
 
