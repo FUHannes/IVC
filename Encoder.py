@@ -457,10 +457,20 @@ class Encoder:
         # diagonal scan
         scanned_block = sort_diagonal(q_idx_block)
 
-        bitrate_estimation = self.entropyEncoder.est_block_bits_inter_pic(scanned_block, inter_flag, mx - mxp, my - myp)
+        # Lagrangion cost if all quantization indices 0
+        distortion_zeros = np.sum(np.square(np.subtract(org_block, pred_block, dtype='int')))
+        zero_block = np.zeros([self.block_size, self.block_size], dtype='int')
+        bitrate_estimation_zeros = self.entropyEncoder.est_block_bits_inter_pic(zero_block, inter_flag, mx - mxp, my - myp)
+        lagrange_zeros = distortion_zeros + lagrange_multiplier * bitrate_estimation_zeros
 
-        # Return Lagrangian cost.
-        return distortion + lagrange_multiplier * bitrate_estimation, rec_block, scanned_block
+        bitrate_estimation = self.entropyEncoder.est_block_bits_inter_pic(scanned_block, inter_flag, mx - mxp, my - myp)
+        lagrange_real = distortion + lagrange_multiplier * bitrate_estimation
+
+        # return lagrangian cost either with or without forcing QIs to zero
+        if lagrange_real < lagrange_zeros:
+            return lagrange_real, rec_block, scanned_block
+        else:
+            return lagrange_zeros, pred_block, zero_block
 
     # opening and writing a binary file
     def write_out(self):
