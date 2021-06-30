@@ -230,7 +230,14 @@ class Encoder:
         candidates = np.append(candidates, [(pred_x_mv, pred_y_mv)], axis=0)
         candidates = np.sign(candidates) * (np.abs(candidates) // 2)  # round candidates to integer precision (towards zero)
 
-        start_mv = min(candidates, key = lambda mv: self.get_lagrangian_cost(mv, pred_x_mv, pred_y_mv, xi, yi, lagrange_root))
+        start_mv = np.zeros(2, dtype='int')
+        min_cost = float('inf')
+        for mv in candidates:
+            if mv[0] >= self.mx_min and mv[0] <= self.mx_max and mv[1] >= self.my_min and mv[1] <= self.my_max:
+                cost = self.get_lagrangian_cost(mv, pred_x_mv, pred_y_mv, xi, yi, lagrange_root)
+                if cost < min_cost:
+                    min_cost = cost
+                    start_mv = mv
 
         return start_mv
 
@@ -290,12 +297,12 @@ class Encoder:
 
     def do_log_search(self, xi, yi, pred_x_mv, pred_y_mv, lagrange_root):
 
-        start = self.find_start_mv(xi, yi, pred_x_mv, pred_y_mv, lagrange_root)
-
         self.mx_min = max(-self.search_range, -(xi + self.block_size))
         self.my_min = max(-self.search_range, -(yi + self.block_size))
         self.mx_max = min(self.search_range, self.padded_rec_img.shape[1] - xi - 2 * self.block_size)
         self.my_max = min(self.search_range, self.padded_rec_img.shape[0] - yi - 2 * self.block_size)
+
+        start = self.find_start_mv(xi, yi, pred_x_mv, pred_y_mv, lagrange_root)
 
         return self.perf_log_step(xi, yi, start[0], start[1], 2, lagrange_root, pred_x_mv, pred_y_mv)
 
