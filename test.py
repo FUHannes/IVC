@@ -37,7 +37,7 @@ def generate_data(filename, version, block_size=16):
     df = pd.DataFrame(columns=['bpp', 'db'])
 
     for index, quality in enumerate([8, 12, 16, 20, 24]):
-        enc = Encoder(input_path, bitstream_path, block_size, quality)
+        enc = Encoder(input_path, bitstream_path, block_size, quality, False)
         enc.encode_image()
         dec = Decoder(bitstream_path, output_path, pgm=True)
         dec.decode_all_frames()
@@ -109,8 +109,8 @@ def plot_data(filename, version, versions):
     plt.xlabel('X: Bits (bpp)')
     plt.ylabel('Y: PSNR (db)')
     plt.legend()
-    #plt.xlim(0.0,2.0)
-    #plt.ylim(20.0,50.0)
+    plt.xlim(0.0,4.0)
+    plt.ylim(25.0,50.0)
     plt.title(filename)
     plt.savefig("PSNR_" + filename + ".pdf")
     plt.show()
