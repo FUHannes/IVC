@@ -24,7 +24,7 @@ VIDEO_PSNR_TOOL_PATH = 'tools/psnr-raw-video/bin/GNU-9.3.0/psnrRaw'
 
 NO_FRAMES = {
     'BasketballPass_416x240_50Hz_P400': {'n_frames': 501, 'fr': 50},
-    'BQSquare_416x240_60Hz_P400': {'n_frames': 10, 'fr': 60},
+    'BQSquare_416x240_60Hz_P400': {'n_frames': 601, 'fr': 60},
     'Johnny_416x240_60Hz_P400': {'n_frames': 600, 'fr': 60},
     'RaceHorses_416x240_30Hz_P400': {'n_frames': 300, 'fr': 30},
 }
