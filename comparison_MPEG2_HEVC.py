@@ -1,8 +1,10 @@
+import argparse
 import os
 import subprocess
 
 import math
 import pandas as pd
+from matplotlib import pyplot as plt
 
 from Decoder import Decoder as Decoder
 from Encoder import Encoder as Encoder
@@ -18,16 +20,16 @@ HEVC_OUTPUT = f'videos/test/HEVC'
 OUR_OUTPUT = f'videos/test/our'
 
 # Adjust on your machine
-VIDEO_PSNR_TOOL_PATH = 'tools/psnr-raw-video/bin/AppleClang-12.0.0.12000032/psnrRaw'
+VIDEO_PSNR_TOOL_PATH = 'tools/psnr-raw-video/bin/GNU-9.3.0/psnrRaw'
 
 NO_FRAMES = {
     'BasketballPass_416x240_50Hz_P400': {'n_frames': 501, 'fr': 50},
-    'BQSquare_416x240_60Hz_P400': {'n_frames': 601, 'fr': 60},
+    'BQSquare_416x240_60Hz_P400': {'n_frames': 10, 'fr': 60},
     'Johnny_416x240_60Hz_P400': {'n_frames': 600, 'fr': 60},
     'RaceHorses_416x240_30Hz_P400': {'n_frames': 300, 'fr': 30},
 }
 
-if __name__ == '__main__':
+def generate_data():
     df_our = pd.DataFrame(columns=['bpp', 'db'])
     df_mpeg2 = pd.DataFrame(columns=['bpp', 'db'])
     df_hevc = pd.DataFrame(columns=['bpp', 'db'])
@@ -67,7 +69,6 @@ if __name__ == '__main__':
             bpp, db = float(out[0]), float(out[1])
             db = 0.0 if math.isinf(db) else db
             df_our.loc[index] = [bpp, db]
-            break
 
         # Store PSNR data
         version_path = os.path.join(DATA_ROOT_PATH, 'our')
@@ -103,7 +104,7 @@ if __name__ == '__main__':
         version_path = os.path.join(DATA_ROOT_PATH, 'mpeg2')
         if not os.path.exists(version_path):
             os.mkdir(version_path)
-        df_our.to_pickle(os.path.join(version_path, filename + DATA_SUFFIX))
+        df_mpeg2.to_pickle(os.path.join(version_path, filename + DATA_SUFFIX))
 
         """
         " HEVC
@@ -127,7 +128,41 @@ if __name__ == '__main__':
             df_hevc.loc[index] = [bpp, db]
 
         # Store PSNR data
-        version_path = os.path.join(DATA_ROOT_PATH, 'mpeg2')
+        version_path = os.path.join(DATA_ROOT_PATH, 'HEVC')
         if not os.path.exists(version_path):
             os.mkdir(version_path)
-        df_our.to_pickle(os.path.join(version_path, filename + DATA_SUFFIX))
+        df_hevc.to_pickle(os.path.join(version_path, filename + DATA_SUFFIX))
+
+def plot_data(filename, version, versions):
+    versions = versions.split(',') + [version] if versions else [version]
+
+    plt.figure(figsize=(20, 12))
+    for version in versions:
+        ver = pd.DataFrame(pd.read_pickle(os.path.join(
+            DATA_ROOT_PATH, version, filename + DATA_SUFFIX)))
+        plt.plot(ver['bpp'], ver['db'], label=version)
+
+    plt.xlabel('X: Bits (bpp)')
+    plt.ylabel('Y: PSNR (db)')
+    plt.legend()
+    plt.title(filename)
+    plt.savefig("PSNR_" + filename + ".pdf")
+    plt.show()
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='Tests encoder quality of a video')
+    parser.add_argument('-nogenerate', dest='nogenerate', action='store_true',
+                        help='optional: if set, no new data is computed but version curves are plotted')
+    args = parser.parse_args()
+    return args
+
+
+if __name__ == '__main__':
+    args = parse_args()
+    if not args.nogenerate:
+        generate_data()
+
+    for video in os.listdir(VIDEOS_PATH):
+        filename = video.split('.')[0]
+        plot_data(filename,"our","HEVC,mpeg2")
