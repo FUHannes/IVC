@@ -14,8 +14,8 @@ from dct import Transformation
 def read_image(input_path):
     with open(input_path, 'rb') as file:
         header = file.readline()
-        if header != b'P5\n':
-            raise Exception('Encoder: No PGM image')
+        if header != b'P5\n' and header != b'P6\n':
+            raise Exception('Encoder: No PGM or PPM image')
         imgSize = file.readline()
         maxVal = file.readline()
         if maxVal != b'255\n':
@@ -31,7 +31,7 @@ def read_image(input_path):
                 if not byte:
                     raise Exception('Encoder: PGM image is corrupted')
                 image[h, w] = byte[0]
-        return image
+        return image, isColored #TODO : andere shape bei color image und einfach als bool mitgeben zur lesbarkeit
 
 
 def read_video(input_path, width, height, n_frames):
@@ -59,7 +59,7 @@ def sort_diagonal(mat: np.ndarray) -> np.ndarray:
 
 class Encoder:
 
-    def __init__(self, input_path, output_path, block_size, QP, fast_search, reconstruction_path=None):
+    def __init__(self, input_path, output_path, block_size, QP, fast_search, reconstruction_path=None, color_subsample_string='4:4:4'):
         self.input_path = input_path
         self.output_path = output_path
         self.block_size = block_size
@@ -74,6 +74,8 @@ class Encoder:
         self.search_range = 0
         self.rmv = []
         self.fast_search = fast_search
+        self.encode_color = False
+        self.color_subsample_string = color_subsample_string
 
     def init_obitstream(self, img_height, img_width, path):
         outputBitstream = OBitstream(path)

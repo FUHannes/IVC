@@ -51,10 +51,15 @@ def main():
                         dest='use_fast',
                         action='store_true')
 
+    parser.add_argument('-C', '--chroma_subsampling', 
+                        help='specify standard to use for chroma subsampling (only with color images). \n Options are 4:4:4, 4:2:2, 4:1:1, 4:2:0 and RGB (add b (e.g. 4:2:0b) to use YCbCr instead of YCoCg) \n if not specified no chroma subsampling is applied (4:4:4), RGB means the image wont be transformed into YCbCr but stay as RGB',
+                        default='4:4:4',
+                        dest='subsample_string')
+
     args = parser.parse_args()
 
     start_time = time.process_time()  # benchmarking speed
-    enc = Encoder(args.input, args.bitstream, args.blocksize, args.qp, args.use_fast, args.reconstruction_path)
+    enc = Encoder(args.input, args.bitstream, args.blocksize, args.qp, args.use_fast, args.reconstruction_path, args.subsample_string)
     if args.video_size is None:
         enc.encode_image()
     else:
