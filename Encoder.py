@@ -132,22 +132,28 @@ class Encoder:
                 channels = rgb2ycbcr(fullimage) if isYCbCr else rgb2ycocg(fullimage)
                 
                 subsample_code = self.color_subsample_string[5:]
+                
+                full_height, full_width = self.image_height, self.image_width
 
                 if subsample_code = "4:4:4": #no subsampling
                     for channel in channels:
                         self.image = channel #because everything works via class member variables instead of normal functional paramaters :/
                         self.encode_frame_intra(show_frame_progress=True)
 
-                # TODO self.image_width und stuff verkacken wahrscheinlich noch
+                # TODO height width ab und an verwechselt evtl?
 
                 elif subsample_code = "4:2:2": # only use every 2nd horizontal pixel
                     for channel, index in enumerate(channels):
                         self.image = channel if index==0 else channel[::2][:] 
+                        if index != 0:
+                            self.set_image_size(full_width/2, full_height)
                         self.encode_frame_intra(show_frame_progress=True)
 
                 elif subsample_code = "4:1:1": # only use every 4th horizontal pixel
                     for channel, index in enumerate(channels):
                         self.image = channel if index==0 else channel[::4][:] 
+                        if index != 0:
+                            self.set_image_size(full_width/4, full_height)
                         self.encode_frame_intra(show_frame_progress=True)
 
                 elif subsample_code = "4:2:1": # squared subsampling
@@ -156,12 +162,12 @@ class Encoder:
                         if index==0:
                             self.image = channel  
                         else: 
+                            self.set_image_size(full_width/2, full_height/2)
                             if use_mean_instead_of_single_sample 
                                 self.image = np.mean(np.swapaxes(channel.reshape([self.image_width,2,self.image_height,2]),1,2),2,3)
                             else:
                                 self.image = channel[::2][::2])
                         self.encode_frame_intra(show_frame_progress=True)
-
 
                 else:
                     raise Exception(f'chroma subsampling "{self.color_subsample_string}" not supported')
