@@ -88,9 +88,10 @@ class PredictionCalculator:
         if x > 0 and y > 0:
             dc = round(0.5 * (self.left_border(x, y).mean() + self.top_border(x, y).mean()))
         elif x > 0:
-            dc = round(self.left_border(x, y).mean())
-        elif y > 0:
             dc = round(self.top_border(x, y).mean())
+        elif y > 0:
+            dc = round(self.left_border(x, y).mean())
+            
         return np.full([self.blocksize, self.blocksize], dc)
 
     def get_vertical_prediction(self, x: int, y: int) -> np.ndarray:
