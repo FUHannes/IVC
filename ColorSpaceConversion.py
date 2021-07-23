@@ -21,7 +21,7 @@ def rgb2ycocg(im):
     xform = np.array([[1, 2, 1], [-1, 2, -1], [2, 0, -2]])
     ycocg = im.dot(xform.T)/4
     ycocg[:,:,[1,2]] += 128
-    return np.uint8(yobgr)
+    return np.uint8(ycocg)
 
 def ycocg2rgb(im):
     xform = np.array([[1, -1, 1], [1, 1, 0], [1, -1, -1]])

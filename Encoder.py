@@ -96,8 +96,8 @@ class Encoder:
         return outputBitstream
 
     def set_image_size(self, width, height):
-        self.image_height = height
-        self.image_width = width
+        self.image_height = int(height)
+        self.image_width = int(width)
         self.pad_height = self.block_size - self.image_height % self.block_size if self.image_height % self.block_size != 0 else 0
         self.pad_width = self.block_size - self.image_width % self.block_size if self.image_width % self.block_size != 0 else 0
 
@@ -107,21 +107,21 @@ class Encoder:
     # Gets an image and return an encoded bitstream.
     def encode_image(self):
         fullimage, self.isColored = read_image(self.input_path)
+        self.image = fullimage if not self.isColored else np.moveaxis(fullimage,-1,0)[0] # this is not beautiful at all, i agree but needed to initialize the width and height and padding class member variables (todo: could also be moved inside the switch for which subsampling to use)
 
-        if not self.isColored:
-            self.image = fullimage
-
-        self.set_image_size(width=self.image.shape[1], height=self.image.shape[0])
+        self.set_image_size(width=fullimage.shape[1], height=fullimage.shape[0])
 
         # open bitstream and write header
         # TODO encode color info (subsampling etc)
         self.outputBitstream = self.init_obitstream(self.image_height, self.image_width, self.output_path)
 
-        if self.isColored:
+        if not self.isColored:
+            self.encode_frame_intra(show_frame_progress=True)
+        else:
 
             # encode RGB directly
             if self.color_subsample_string == "RGB":
-                colorchannels = np.swapaxes(fullimage,0,2)
+                colorchannels = np.moveaxis(fullimage,-1,0)
                 for channel in colorchannels:
                     self.image = channel #because everything works via class member variables instead of normal functional paramaters :/
                     self.encode_frame_intra(show_frame_progress=True) 
@@ -129,9 +129,9 @@ class Encoder:
             else:
                 # use Y'CbCr or better YCoCg
                 isYCbCr = len(self.color_subsample_string) == 6 and self.color_subsample_string[5]=='b'
-                channels = rgb2ycbcr(fullimage) if isYCbCr else rgb2ycocg(fullimage)
-                
-                subsample_code = self.color_subsample_string[5:]
+                channels = np.moveaxis((rgb2ycbcr(fullimage) if isYCbCr else rgb2ycocg(fullimage)),-1,0)
+                print(channels.shape)
+                subsample_code = self.color_subsample_string[:5]
                 
                 full_height, full_width = self.image_height, self.image_width
 
@@ -143,28 +143,30 @@ class Encoder:
                 # TODO height width ab und an verwechselt evtl?
 
                 elif subsample_code == "4:2:2": # only use every 2nd horizontal pixel
-                    for channel, index in enumerate(channels):
+                    for index, channel in enumerate(channels):
+                        print(index)
                         self.image = channel if index==0 else channel[::2][:] 
                         if index != 0:
                             self.set_image_size(full_width/2, full_height)
                         self.encode_frame_intra(show_frame_progress=True)
 
                 elif subsample_code == "4:1:1": # only use every 4th horizontal pixel
-                    for channel, index in enumerate(channels):
+                    for index, channel in enumerate(channels):
                         self.image = channel if index==0 else channel[::4][:] 
                         if index != 0:
                             self.set_image_size(full_width/4, full_height)
                         self.encode_frame_intra(show_frame_progress=True)
 
-                elif subsample_code == "4:2:1": # squared subsampling
+                elif subsample_code == "4:2:0": # squared subsampling
                     use_mean_instead_of_single_sample = True
-                    for channel, index in enumerate(channels):
-                        if index==0:
+                    for index, channel in enumerate(channels):
+                        if index==0 :# and False:
                             self.image = channel  
                         else: 
                             self.set_image_size(full_width/2, full_height/2)
                             if use_mean_instead_of_single_sample :
-                                self.image = np.mean(np.swapaxes(channel.reshape([self.image_width,2,self.image_height,2]),1,2),2,3)
+                                reshaped_so_the_4pixelblocks_are_the_innermost_axes = np.swapaxes(channel.reshape(self.image_width,2,self.image_height,2),1,2)
+                                self.image = np.mean(reshaped_so_the_4pixelblocks_are_the_innermost_axes,(-1,-2)).astype(np.uint8)
                             else:
                                 self.image = channel[::2][::2]
                         self.encode_frame_intra(show_frame_progress=True)
@@ -172,8 +174,6 @@ class Encoder:
                 else:
                     raise Exception(f'chroma subsampling "{self.color_subsample_string}" not supported')
 
-        else:
-            self.encode_frame_intra(show_frame_progress=True)
 
         # terminate bitstream
         self.outputBitstream.terminate()
