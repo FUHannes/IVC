@@ -82,6 +82,7 @@ class PredictionCalculator:
         else:
             raise Exception('Unsupported prediction mode')
 
+    #TODO x and y with top and left and stuff
     def get_dc_prediction(self, x: int, y: int) -> np.ndarray:
         dc = 128
         if x > 0 and y > 0:
