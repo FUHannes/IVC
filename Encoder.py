@@ -95,7 +95,7 @@ class Encoder:
         outputBitstream.addBits(self.qp, 8)
         return outputBitstream
 
-    def set_image_size(self, width, height):
+    def set_image_size(self, width, height): # remember width is y and shape[1]
         self.image_height = int(height)
         self.image_width = int(width)
         self.pad_height = self.block_size - self.image_height % self.block_size if self.image_height % self.block_size != 0 else 0
@@ -103,7 +103,6 @@ class Encoder:
 
     def _add_padding(self):
         self.image = np.pad(self.image, ((0, self.pad_height), (0, self.pad_width)), "edge")
-
     # Gets an image and return an encoded bitstream.
     def encode_image(self):
         fullimage, self.isColored = read_image(self.input_path)
@@ -140,11 +139,8 @@ class Encoder:
                         self.image = channel #because everything works via class member variables instead of normal functional paramaters :/
                         self.encode_frame_intra(show_frame_progress=True)
 
-                # TODO height width ab und an verwechselt evtl?
-
                 elif subsample_code == "4:2:2": # only use every 2nd horizontal pixel
                     for index, channel in enumerate(channels):
-                        print(index)
                         self.image = channel if index==0 else channel[::2][:] 
                         if index != 0:
                             self.set_image_size(full_width/2, full_height)
@@ -160,7 +156,7 @@ class Encoder:
                 elif subsample_code == "4:2:0": # squared subsampling
                     use_mean_instead_of_single_sample = True
                     for index, channel in enumerate(channels):
-                        if index==0 :# and False:
+                        if index==0  and False:
                             self.image = channel  
                         else: 
                             self.set_image_size(full_width/2, full_height/2)
@@ -220,8 +216,11 @@ class Encoder:
     def encode_frame_intra(self, show_frame_progress=False, frame=None):
         # add padding
         #_frame = frame if frame not None else self.image 
+        print(self.image.shape, self.image_width, self.image_height, self.pad_width, self.pad_height)
         self._add_padding()
-        self.image_reconstructed = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],
+        print(self.image.shape, self.image_width, self.image_height, self.pad_width, self.pad_height)
+
+        self.image_reconstructed = np.zeros(self.image.shape,
                                             dtype=np.uint8)
 
         # start new arithmetic codeword for each frame
@@ -237,8 +236,8 @@ class Encoder:
 
         # process image
         lagrange_multiplier = 0.1 * self.qs * self.qs
-        for yi in range(0, self.image_height + self.pad_height, self.block_size):
-            for xi in range(0, self.image_width + self.pad_width, self.block_size):
+        for yi in range(0, self.image.shape[0] , self.block_size): # had to remove pad # y is width shape[0]
+            for xi in range(0, self.image.shape[1], self.block_size): # had to remove pad
                 if show_frame_progress:
                     progress_bar.update()
 
@@ -482,7 +481,7 @@ class Encoder:
     def test_encode_block_intra_pic(self, x: int, y: int, pred_mode: PredictionMode, lagrange_multiplier):
         # Accessor for current block.
         org_block = self.image[y:y + self.block_size, x:x + self.block_size]
-
+        print(x,y, org_block.shape)
         # Prediction, Transform, Quantization.
         pred_block = self.pred_calc.get_prediction(x, y, pred_mode)
         pred_error = org_block.astype('int') - pred_block
