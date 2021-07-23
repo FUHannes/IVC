@@ -9,6 +9,8 @@ from PredictionCalculator import PredictionMode
 from OBitstream import OBitstream
 from dct import Transformation
 
+from ColorSpaceConversion import *
+
 
 # read PGM image
 def read_image(input_path):
@@ -24,14 +26,21 @@ def read_image(input_path):
         width = int(width[2:])
         height = int(height[:len(height) - 3])
         # create image and read data
-        image = np.zeros([height, width], dtype=np.uint8)
-        for h in range(0, height):
-            for w in range(0, width):
-                byte = file.read(1)
-                if not byte:
-                    raise Exception('Encoder: PGM image is corrupted')
-                image[h, w] = byte[0]
-        return image, isColored #TODO : andere shape bei color image und einfach als bool mitgeben zur lesbarkeit
+        if header == b'P5\n':
+            isColored = False
+            image = np.zeros([height, width], dtype=np.uint8)
+            for h in range(0, height):
+                for w in range(0, width):
+                    byte = file.read(1)
+                    if not byte:
+                        raise Exception('Encoder: PGM image is corrupted')
+                    image[h, w] = byte[0]
+            return image, isColored
+        elif header == b'P6\n':
+            isColored = True
+            _bytes = file.read(width * height * 3)
+            image = np.frombuffer(_bytes, dtype='uint8').reshape(height, width, 3)
+            return image, isColored 
 
 
 def read_video(input_path, width, height, n_frames):
@@ -74,7 +83,8 @@ class Encoder:
         self.search_range = 0
         self.rmv = []
         self.fast_search = fast_search
-        self.encode_color = False
+
+        self.isColored = False
         self.color_subsample_string = color_subsample_string
 
     def init_obitstream(self, img_height, img_width, path):
@@ -96,13 +106,68 @@ class Encoder:
 
     # Gets an image and return an encoded bitstream.
     def encode_image(self):
-        self.image = read_image(self.input_path)
+        fullimage, self.isColored = read_image(self.input_path)
+
+        if not self.isColored:
+            self.image = fullimage
+
         self.set_image_size(width=self.image.shape[1], height=self.image.shape[0])
 
         # open bitstream and write header
+        # TODO encode color info (subsampling etc)
         self.outputBitstream = self.init_obitstream(self.image_height, self.image_width, self.output_path)
 
-        self.encode_frame_intra(show_frame_progress=True)
+        if self.isColored:
+
+            # encode RGB directly
+            if self.color_subsample_string = "RGB":
+                colorchannels = np.swapaxes(fullimage,0,2)
+                for channel in colorchannels:
+                    self.image = channel #because everything works via class member variables instead of normal functional paramaters :/
+                    self.encode_frame_intra(show_frame_progress=True) 
+
+            else:
+                # use Y'CbCr or better YCoCg
+                isYCbCr = len(self.color_subsample_string) = 6 and self.color_subsample_string[5]=='b': 
+                channels = rgb2ycbcr(fullimage) if isYCbCr else rgb2ycocg(fullimage)
+                
+                subsample_code = self.color_subsample_string[5:]
+
+                if subsample_code = "4:4:4": #no subsampling
+                    for channel in channels:
+                        self.image = channel #because everything works via class member variables instead of normal functional paramaters :/
+                        self.encode_frame_intra(show_frame_progress=True)
+
+                # TODO self.image_width und stuff verkacken wahrscheinlich noch
+
+                elif subsample_code = "4:2:2": # only use every 2nd horizontal pixel
+                    for channel, index in enumerate(channels):
+                        self.image = channel if index==0 else channel[::2][:] 
+                        self.encode_frame_intra(show_frame_progress=True)
+
+                elif subsample_code = "4:1:1": # only use every 4th horizontal pixel
+                    for channel, index in enumerate(channels):
+                        self.image = channel if index==0 else channel[::4][:] 
+                        self.encode_frame_intra(show_frame_progress=True)
+
+                elif subsample_code = "4:2:1": # squared subsampling
+                    use_mean_instead_of_single_sample = True
+                    for channel, index in enumerate(channels):
+                        if index==0:
+                            self.image = channel  
+                        else: 
+                            if use_mean_instead_of_single_sample 
+                                self.image = np.mean(np.swapaxes(channel.reshape([self.image_width,2,self.image_height,2]),1,2),2,3)
+                            else:
+                                self.image = channel[::2][::2])
+                        self.encode_frame_intra(show_frame_progress=True)
+
+
+                else:
+                    raise Exception(f'chroma subsampling "{self.color_subsample_string}" not supported')
+
+        else:
+            self.encode_frame_intra(show_frame_progress=True)
 
         # terminate bitstream
         self.outputBitstream.terminate()
@@ -146,8 +211,9 @@ class Encoder:
 
     # If you change this methods pay attention because is used in both encode_image and encode_video() methods
     # This method should be called for the first frame only
-    def encode_frame_intra(self, show_frame_progress=False):
+    def encode_frame_intra(self, show_frame_progress=False, frame=None):
         # add padding
+        #_frame = frame if frame not None else self.image 
         self._add_padding()
         self.image_reconstructed = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],
                                             dtype=np.uint8)
