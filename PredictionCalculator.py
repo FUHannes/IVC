@@ -15,14 +15,14 @@ class PredictionCalculator:
         self.image = image
         self.ref_image = ref_image
         self.interpolated_ref_image = self.half_sample_interpolation(ref_image) if ref_image is not None else None
-        self.coded_width = self.image.shape[1]
         self.coded_height = self.image.shape[0]
+        self.coded_width = self.image.shape[1]
         self.blocksize = blocksize
         self.mv = np.zeros([self.coded_height // self.blocksize + 1,
                             self.coded_width // self.blocksize + 2, 2], dtype=np.int)
         if self.interpolated_ref_image is not None:
-            self.max_xh = self.interpolated_ref_image.shape[1] - (2 * self.blocksize - 1)
-            self.max_yh = self.interpolated_ref_image.shape[0] - (2 * self.blocksize - 1)
+            self.max_xh = self.interpolated_ref_image.shape[0] - (2 * self.blocksize - 1)
+            self.max_yh = self.interpolated_ref_image.shape[1] - (2 * self.blocksize - 1)
 
     def half_sample_interpolation(self, image: np.ndarray) -> np.ndarray:
         # 1. Pad the (already padded) image with another 4 samples at each side (using sample repetition)
@@ -40,35 +40,35 @@ class PredictionCalculator:
         return spreaded_image[8:-8,8:-8]
 
     def store_mv(self, x: int, y: int, mx: int, my: int):
-        yb = y // self.blocksize + 1
         xb = x // self.blocksize + 1
-        self.mv[yb, xb] = mx, my
+        yb = y // self.blocksize + 1
+        self.mv[xb, yb] = mx, my
 
     def get_start_mv_candidates(self, x, y):
-        yb = y // self.blocksize + 1
         xb = x // self.blocksize + 1
-        mxa, mya = self.mv[yb, xb - 1]  # left block
-        mxb, myb = self.mv[yb - 1, xb]  # block above
-        mxc, myc = self.mv[yb - 1, xb + 1]  # block above-right
-        mxd, myd = self.mv[yb - 1, xb - 1] # block above-left
+        yb = y // self.blocksize + 1
+        mxa, mya = self.mv[xb, yb - 1]  # left block
+        mxb, myb = self.mv[xb - 1, yb]  # block above
+        mxc, myc = self.mv[xb - 1, yb + 1]  # block above-right
+        mxd, myd = self.mv[xb - 1, yb - 1] # block above-left
  
         return np.array([(mxa, mya), (mxb, myb), (mxc, myc), (mxd, myd)])
 
     def get_mv_pred(self, x: int, y: int):
-        yb = y // self.blocksize + 1
         xb = x // self.blocksize + 1
-        mxa, mya = self.mv[yb, xb - 1]  # left block
-        mxb, myb = self.mv[yb - 1, xb]  # block above
-        mxc, myc = self.mv[yb - 1, xb + 1]  # block above-right
+        yb = y // self.blocksize + 1
+        mxa, mya = self.mv[xb, yb - 1]  # left block
+        mxb, myb = self.mv[xb - 1, yb]  # block above
+        mxc, myc = self.mv[xb - 1, yb + 1]  # block above-right
         mxp = (mxa + mxb + mxc) - min(mxa, mxb, mxc) - max(mxa, mxb, mxc)  # median: center of sorted list
         myp = (mya + myb + myc) - min(mya, myb, myc) - max(mya, myb, myc)  # median: center of sorted list
         return mxp, myp
 
     def left_border(self, x: int, y: int):
-        return self.image[y:y + self.blocksize, x - 1:x].ravel() if x > 0 else np.full([self.blocksize], 128)
+        return self.image[x:x + self.blocksize, y - 1:y].ravel() if y > 0 else np.full([self.blocksize], 128)
 
     def top_border(self, x: int, y: int):
-        return self.image[y - 1:y, x:x + self.blocksize].ravel() if y > 0 else np.full([self.blocksize], 128)
+        return self.image[x - 1:x, y:y + self.blocksize].ravel() if x > 0 else np.full([self.blocksize], 128)
 
     def get_prediction(self, x: int, y: int, prediction_mode: PredictionMode) -> np.ndarray:
         if prediction_mode == PredictionMode.DC_PREDICTION:
@@ -108,15 +108,15 @@ class PredictionCalculator:
         pred_block = np.full([self.blocksize, self.blocksize], self.blocksize,
                              dtype='int32')  # initialize with rounding offset
 
-        # horizontal part
-        for local_x in range(0, self.blocksize):
-            pred_block[:, local_x] += (self.blocksize - 1 - local_x) * left_samples + (
-                    1 + local_x) * virtual_right_samples
-
         # vertical part
+        for local_x in range(0, self.blocksize):
+            pred_block[local_x, :] += (self.blocksize - 1 - local_x) * top_samples + (
+                    1 + local_x) * virtual_bottom_samples
+
+        # horizontal part
         for local_y in range(0, self.blocksize):
-            pred_block[local_y, :] += (self.blocksize - 1 - local_y) * top_samples + (
-                    1 + local_y) * virtual_bottom_samples
+            pred_block[:, local_y] += (self.blocksize - 1 - local_y) * left_samples + (
+                    1 + local_y) * virtual_right_samples
 
         # final division (with rounding)
         pred_block //= (2 * self.blocksize)
@@ -125,4 +125,4 @@ class PredictionCalculator:
     def get_inter_prediction(self, x: int, y: int, mx: int, my: int):
         xh = max(0, min(2 * (x + self.blocksize) + mx, self.max_xh))  # clip to image area
         yh = max(0, min(2 * (y + self.blocksize) + my, self.max_yh))  # clip to image area
-        return self.interpolated_ref_image[yh:yh + 2*self.blocksize:2, xh:xh + 2*self.blocksize:2]
+        return self.interpolated_ref_image[xh:xh + 2*self.blocksize:2, yh:yh + 2*self.blocksize:2]

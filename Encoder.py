@@ -95,7 +95,7 @@ class Encoder:
         outputBitstream.addBits(self.qp, 8)
         return outputBitstream
 
-    def set_image_size(self, width, height): # remember width is y and shape[1]
+    def set_image_size(self, height, width): # remember width is y and shape[1]
         self.image_height = int(height)
         self.image_width = int(width)
         self.pad_height = self.block_size - self.image_height % self.block_size if self.image_height % self.block_size != 0 else 0
@@ -108,7 +108,7 @@ class Encoder:
         fullimage, self.isColored = read_image(self.input_path)
         self.image = fullimage if not self.isColored else np.moveaxis(fullimage,-1,0)[0] # this is not beautiful at all, i agree but needed to initialize the width and height and padding class member variables (todo: could also be moved inside the switch for which subsampling to use)
 
-        self.set_image_size(width=fullimage.shape[1], height=fullimage.shape[0])
+        self.set_image_size(height=fullimage.shape[0],width=fullimage.shape[1])
 
         # open bitstream and write header
         # TODO encode color info (subsampling etc)
@@ -143,14 +143,14 @@ class Encoder:
                     for index, channel in enumerate(channels):
                         self.image = channel if index==0 else channel[::2][:] 
                         if index != 0:
-                            self.set_image_size(full_width/2, full_height)
+                            self.set_image_size(full_height,full_width/2)
                         self.encode_frame_intra(show_frame_progress=True)
 
                 elif subsample_code == "4:1:1": # only use every 4th horizontal pixel
                     for index, channel in enumerate(channels):
                         self.image = channel if index==0 else channel[::4][:] 
                         if index != 0:
-                            self.set_image_size(full_width/4, full_height)
+                            self.set_image_size(full_height,full_width/4)
                         self.encode_frame_intra(show_frame_progress=True)
 
                 elif subsample_code == "4:2:0": # squared subsampling
@@ -159,9 +159,9 @@ class Encoder:
                         if index==0  and False:
                             self.image = channel  
                         else: 
-                            self.set_image_size(full_width/2, full_height/2)
+                            self.set_image_size(full_height/2,full_width/2)
                             if use_mean_instead_of_single_sample :
-                                reshaped_so_the_4pixelblocks_are_the_innermost_axes = np.swapaxes(channel.reshape(self.image_width,2,self.image_height,2),1,2)
+                                reshaped_so_the_4pixelblocks_are_the_innermost_axes = np.swapaxes(channel.reshape(self.image_height,2,self.image_width,2),1,2)
                                 self.image = np.mean(reshaped_so_the_4pixelblocks_are_the_innermost_axes,(-1,-2)).astype(np.uint8)
                             else:
                                 self.image = channel[::2][::2]
@@ -183,10 +183,10 @@ class Encoder:
             rmv.append(2*bitsUsed(i) +1)
         return rmv
 
-    def encode_video(self, width, height, n_frames, search_range):
+    def encode_video(self, height, width, n_frames, search_range):
         self.raw_video = True
-        video = read_video(self.input_path, width, height, n_frames)
-        self.set_image_size(width, height)
+        video = read_video(self.input_path, height, width, n_frames)
+        self.set_image_size(height,width)
         self.search_range = search_range
         self.rmv = self.calculate_lookup_table()
 
@@ -216,9 +216,9 @@ class Encoder:
     def encode_frame_intra(self, show_frame_progress=False, frame=None):
         # add padding
         #_frame = frame if frame not None else self.image 
-        print(self.image.shape, self.image_width, self.image_height, self.pad_width, self.pad_height)
+        print(self.image.shape, self.image_height, self.image_width, self.pad_height, self.pad_width)
         self._add_padding()
-        print(self.image.shape, self.image_width, self.image_height, self.pad_width, self.pad_height)
+        print(self.image.shape, self.image_height, self.image_width, self.pad_height, self.pad_width)
 
         self.image_reconstructed = np.zeros(self.image.shape,
                                             dtype=np.uint8)
@@ -236,8 +236,8 @@ class Encoder:
 
         # process image
         lagrange_multiplier = 0.1 * self.qs * self.qs
-        for yi in range(0, self.image.shape[0] , self.block_size): # had to remove pad # y is width shape[0]
-            for xi in range(0, self.image.shape[1], self.block_size): # had to remove pad
+        for xi in range(0, self.image.shape[0] , self.block_size): # had to remove pad # x is height shape[0]
+            for yi in range(0, self.image.shape[1], self.block_size): # had to remove pad # y is width shape[1]
                 if show_frame_progress:
                     progress_bar.update()
 
@@ -281,8 +281,8 @@ class Encoder:
         lagrange_root = math.sqrt(lagrange_multiplier)
 
 
-        for yi in range(0, self.image_height + self.pad_height, self.block_size):
-            for xi in range(0, self.image_width + self.pad_width, self.block_size):
+        for xi in range(0, self.image_height + self.pad_height, self.block_size):
+            for yi in range(0, self.image_width + self.pad_width, self.block_size):
                 # estimate motion
                 mxp, myp = self.pred_calc.get_mv_pred(xi, yi)
                 mx, my = self.estimate_motion_vector(xi, yi, mxp, myp, lagrange_root)
@@ -465,7 +465,7 @@ class Encoder:
         self.entropyEncoder.write_block_intra_pic(qidx_list, pred_mode)
 
         # reconstruction
-        self.image_reconstructed[y:y + self.block_size, x:x + self.block_size] = rec_block
+        self.image_reconstructed[x:x + self.block_size, y:y + self.block_size] = rec_block
 
     # encode block of current picture
     def encode_block_inter_pic(self, x: int, y: int, rec_block, qidx_list, inter_flag: int, mx: int = 0, my: int = 0, mxp: int = 0, myp: int = 0):
@@ -473,14 +473,14 @@ class Encoder:
         self.entropyEncoder.write_block_inter_pic(qidx_list, inter_flag, mx - mxp, my - myp)
 
         # reconstruction and motion vector storage
-        self.image_reconstructed[y:y + self.block_size, x:x + self.block_size] = rec_block
+        self.image_reconstructed[x:x + self.block_size, y:y + self.block_size] = rec_block
         if inter_flag:
             self.pred_calc.store_mv(x, y, mx, my)
 
     # Calculate lagrangian cost for given block and prediction mode.
     def test_encode_block_intra_pic(self, x: int, y: int, pred_mode: PredictionMode, lagrange_multiplier):
         # Accessor for current block.
-        org_block = self.image[y:y + self.block_size, x:x + self.block_size]
+        org_block = self.image[x:x + self.block_size, y:y + self.block_size]
         print(x,y, org_block.shape)
         # Prediction, Transform, Quantization.
         pred_block = self.pred_calc.get_prediction(x, y, pred_mode)
@@ -513,7 +513,7 @@ class Encoder:
     # Calculate lagrangian cost for given block: Extent and use later
     def test_encode_block_inter_pic(self, lagrange_multiplier, x: int, y: int, inter_flag: int, mx: int = 0, my: int = 0, mxp: int = 0, myp: int = 0):
         # Accessor for current block.
-        org_block = self.image[y:y + self.block_size, x:x + self.block_size]
+        org_block = self.image[x:x + self.block_size, y:y + self.block_size]
 
         # Prediction
         if inter_flag:
@@ -561,7 +561,7 @@ class Encoder:
         # output all reconstructed frames (remove padding just before output)
         for image_reconstructed in self.image_reconstructed_array:
             # remove padding
-            image_reconstructed = image_reconstructed[:self.image_height, :self.image_width]
+            image_reconstructed = image_reconstructed[:self.image_width, :self.image_height]
             out_file.write(image_reconstructed.ravel().tobytes())
         out_file.close()
         return True
