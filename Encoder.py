@@ -111,15 +111,19 @@ class Encoder:
         self.set_image_size(height=fullimage.shape[0],width=fullimage.shape[1])
 
         # open bitstream and write header
-        # TODO encode color info (subsampling etc)
         self.outputBitstream = self.init_obitstream(self.image_height, self.image_width, self.output_path)
 
         if not self.isColored:
+            self.outputBitstream.addBit(0) # flag for color images ; 0 = non-colored img (aka greyscale)
             self.encode_frame_intra(show_frame_progress=True)
         else:
+            self.outputBitstream.addBit(1) # flag for color images
 
             # encode RGB directly
             if self.color_subsample_string == "RGB":
+
+                self.outputBitstream.addBit(0) # flag for colorspace ; 0 = no transformation
+
                 colorchannels = np.moveaxis(fullimage,-1,0)
                 for channel in colorchannels:
                     self.image = channel #because everything works via class member variables instead of normal functional paramaters :/
@@ -128,17 +132,20 @@ class Encoder:
             else:
                 # use Y'CbCr or better YCoCg
                 isYCbCr = len(self.color_subsample_string) == 6 and self.color_subsample_string[5]=='b'
+                self.outputBitstream.addBits(0b10+isYCbCr,2) # flag for colorspace ; first bit says yes its transformed and second one whether the old YCbCr is used
                 channels = np.moveaxis((rgb2ycbcr(fullimage) if isYCbCr else rgb2ycocg(fullimage)),-1,0)
                 subsample_code = self.color_subsample_string[:5]
                 
                 full_height, full_width = self.image_height, self.image_width
 
                 if subsample_code == "4:4:4": #no subsampling
+                    self.outputBitstream.addBits(0,2)#what kind of subsampling was used (from 0 to 3)
                     for channel in channels:
                         self.image = channel #because everything works via class member variables instead of normal functional paramaters :/
                         self.encode_frame_intra(show_frame_progress=True)
 
                 elif subsample_code == "4:2:2": # only use every 2nd horizontal pixel
+                    self.outputBitstream.addBits(1,2)#what kind of subsampling was used (from 0 to 3)
                     for index, channel in enumerate(channels):
                         self.image = channel if index==0 else channel[:,::2] 
                         if index != 0:
@@ -146,6 +153,7 @@ class Encoder:
                         self.encode_frame_intra(show_frame_progress=True)
 
                 elif subsample_code == "4:1:1": # only use every 4th horizontal pixel
+                    self.outputBitstream.addBits(2,2)#what kind of subsampling was used (from 0 to 3)
                     for index, channel in enumerate(channels):
                         self.image = channel if index==0 else channel[:,::4] 
                         if index != 0:
@@ -153,6 +161,7 @@ class Encoder:
                         self.encode_frame_intra(show_frame_progress=True)
 
                 elif subsample_code == "4:2:0": # squared subsampling
+                    self.outputBitstream.addBits(3,2)#what kind of subsampling was used (from 0 to 3)
                     use_mean_instead_of_single_sample = True
                     for index, channel in enumerate(channels):
                         if index==0  and False:
