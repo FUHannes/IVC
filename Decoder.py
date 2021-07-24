@@ -64,7 +64,7 @@ class Decoder:
         # adding prediction
         recBlock += self.pred_calc.get_prediction(x, y, prediction_mode)
         # clipping (0,255) and store to image
-        self.image[y:y + self.block_size, x:x + self.block_size] = np.clip(recBlock, 0, 255).astype('uint8')
+        self.image[x:x + self.block_size, y:y + self.block_size] = np.clip(recBlock, 0, 255).astype('uint8')
 
     def decode_block_inter_pic(self, x: int, y: int):
         # entropy decoding (EntropyDecoder)
@@ -87,7 +87,7 @@ class Decoder:
             recBlock += self.pred_calc.get_prediction(x, y, PredictionMode.DC_PREDICTION)
 
         # clipping (0,255) and store to image
-        self.image[y:y + self.block_size, x:x + self.block_size] = np.clip(recBlock, 0, 255).astype('uint8')
+        self.image[x:x + self.block_size, y:y + self.block_size] = np.clip(recBlock, 0, 255).astype('uint8')
 
     # opening and writing a binary file
     def write_out(self):
@@ -108,8 +108,8 @@ class Decoder:
         self.ent_dec = EntropyDecoder(self.bitstream, self.block_size)
 
         # decode blocks
-        for yi in range(0, self.image_height + self.pad_height, self.block_size):
-            for xi in range(0, self.image_width + self.pad_width, self.block_size):
+        for xi in range(0, self.image_height + self.pad_height, self.block_size):
+            for yi in range(0, self.image_width + self.pad_width, self.block_size):
                 self.decode_block_intra_pic(xi, yi)
 
         # terminate arithmatic codeword and check whether everything is ok so far
@@ -129,8 +129,8 @@ class Decoder:
         self.ent_dec = EntropyDecoder(self.bitstream, self.block_size)
 
         # decode blocks
-        for yi in range(0, self.image_height + self.pad_height, self.block_size):
-            for xi in range(0, self.image_width + self.pad_width, self.block_size):
+        for xi in range(0, self.image_height + self.pad_height, self.block_size):
+            for yi in range(0, self.image_width + self.pad_width, self.block_size):
                 self.decode_block_inter_pic(xi, yi)
 
         # terminate arithmatic codeword and check whether everything is ok so far

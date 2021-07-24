@@ -129,7 +129,6 @@ class Encoder:
                 # use Y'CbCr or better YCoCg
                 isYCbCr = len(self.color_subsample_string) == 6 and self.color_subsample_string[5]=='b'
                 channels = np.moveaxis((rgb2ycbcr(fullimage) if isYCbCr else rgb2ycocg(fullimage)),-1,0)
-                print(channels.shape)
                 subsample_code = self.color_subsample_string[:5]
                 
                 full_height, full_width = self.image_height, self.image_width
@@ -216,9 +215,7 @@ class Encoder:
     def encode_frame_intra(self, show_frame_progress=False, frame=None):
         # add padding
         #_frame = frame if frame not None else self.image 
-        print(self.image.shape, self.image_height, self.image_width, self.pad_height, self.pad_width)
         self._add_padding()
-        print(self.image.shape, self.image_height, self.image_width, self.pad_height, self.pad_width)
 
         self.image_reconstructed = np.zeros(self.image.shape,
                                             dtype=np.uint8)
