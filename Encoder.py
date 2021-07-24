@@ -140,14 +140,14 @@ class Encoder:
 
                 elif subsample_code == "4:2:2": # only use every 2nd horizontal pixel
                     for index, channel in enumerate(channels):
-                        self.image = channel if index==0 else channel[::2][:] 
+                        self.image = channel if index==0 else channel[:,::2] 
                         if index != 0:
                             self.set_image_size(full_height,full_width/2)
                         self.encode_frame_intra(show_frame_progress=True)
 
                 elif subsample_code == "4:1:1": # only use every 4th horizontal pixel
                     for index, channel in enumerate(channels):
-                        self.image = channel if index==0 else channel[::4][:] 
+                        self.image = channel if index==0 else channel[:,::4] 
                         if index != 0:
                             self.set_image_size(full_height,full_width/4)
                         self.encode_frame_intra(show_frame_progress=True)
@@ -478,7 +478,6 @@ class Encoder:
     def test_encode_block_intra_pic(self, x: int, y: int, pred_mode: PredictionMode, lagrange_multiplier):
         # Accessor for current block.
         org_block = self.image[x:x + self.block_size, y:y + self.block_size]
-        print(x,y, org_block.shape)
         # Prediction, Transform, Quantization.
         pred_block = self.pred_calc.get_prediction(x, y, pred_mode)
         pred_error = org_block.astype('int') - pred_block
