@@ -127,7 +127,7 @@ class Encoder:
                 colorchannels = np.moveaxis(fullimage,-1,0)
                 for channel in colorchannels:
                     self.image = channel #because everything works via class member variables instead of normal functional paramaters :/
-                    self.encode_frame_intra(show_frame_progress=True) 
+                    self.encode_frame_intra(show_frame_progress=True) #vllt wäre es sogar eine gute idee inter encoding zu verwenden
 
             else:
                 # use Y'CbCr or better YCoCg
@@ -192,6 +192,7 @@ class Encoder:
         return rmv
 
     def encode_video(self, height, width, n_frames, search_range):
+        self.outputBitstream.addBit(0) # flag for color images ; 0 = non-colored img (aka greyscale); no support for color videos yet
         self.raw_video = True
         video = read_video(self.input_path, height, width, n_frames)
         self.set_image_size(height,width)

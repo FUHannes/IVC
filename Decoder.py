@@ -6,6 +6,8 @@ from dct import Transformation
 from PredictionCalculator import PredictionCalculator
 from PredictionCalculator import PredictionMode
 
+from ColorSpaceConversion import *
+
 
 def de_diagonalize(arr: np.ndarray) -> np.ndarray:
     x = 0
@@ -34,16 +36,28 @@ class Decoder:
         self.output_path = output_path
         self.pgm = pgm
         self.bitstream = IBitstream(input_path)
-        self.image_width = self.bitstream.get_bits(16)
-        self.image_height = self.bitstream.get_bits(16)
+        width, height = self.bitstream.get_bits(16), self.bitstream.get_bits(16)
         self.block_size = self.bitstream.get_bits(16)
+        self.set_image_size(height,width)
         self.qp = self.bitstream.get_bits(8)
         self.qs = 2 ** (self.qp / 4)
-        self.pad_height  = self.block_size - self.image_height%self.block_size if self.image_height%self.block_size != 0 else 0
-        self.pad_width  = self.block_size - self.image_width%self.block_size if self.image_width%self.block_size != 0 else 0
+
+        self.isColored = self.bitstream.get_bit()
+        if self.isColored:
+            self.isRGB = not self.bitstream.get_bit()
+            if not self.isRGB:
+                self.isYCbCr = self.bitstream.get_bit()
+                self.subsampling_num = self.bitstream.get_bits(2)
+
         self.image = np.zeros([self.image_height + self.pad_height, self.image_width+self.pad_width], dtype=np.uint8)
         self.image_array = []
         self.transformation = Transformation(self.block_size)
+
+    def set_image_size(self, height, width): # remember width is y and shape[1]
+        self.image_height = int(height)
+        self.image_width = int(width)
+        self.pad_height = self.block_size - self.image_height % self.block_size if self.image_height % self.block_size != 0 else 0
+        self.pad_width = self.block_size - self.image_width % self.block_size if self.image_width % self.block_size != 0 else 0
 
     def decode_block_intra_pic(self, x: int, y: int):
         # entropy decoding (EntropyDecoder)
@@ -91,15 +105,20 @@ class Decoder:
 
     # opening and writing a binary file
     def write_out(self):
-        out_file = open(self.output_path, "wb")
-        if self.pgm:
-            out_file.write(f'P5\n{self.image_width} {self.image_height}\n255\n'.encode())
-        for image in self.image_array:
-            # padding is removed directly before output
-            image = image[:self.image_height,:self.image_width]
-            out_file.write(image.ravel().tobytes())
-        out_file.close()
-        return True
+        if self.isColored:
+            with open(input_path, 'wb') as file:
+                file.write(f'P6\n{self.image_width} {self.image_height}\n255\n'.encode())
+                file.write(self.RGBimg.ravel().tobytes())
+        else:
+            out_file = open(self.output_path, "wb")
+            if self.pgm:
+                out_file.write(f'P5\n{self.image_width} {self.image_height}\n255\n'.encode())
+            for image in self.image_array:
+                # padding is removed directly before output
+                image = image[:self.image_height,:self.image_width]
+                out_file.write(image.ravel().tobytes())
+            out_file.close()
+            return True
 
     def decode_next_frame_intra(self):
         self.pred_calc = PredictionCalculator(self.image, self.block_size)
@@ -145,7 +164,32 @@ class Decoder:
 
     def decode_all_frames(self):
         self.decode_next_frame_intra()
-        while not self.bitstream.is_EOF():
-            self.decode_next_frame_inter()
+        if self.isColored:
+            if self.isRGB:
+                self.decode_next_frame_intra() # G
+                self.decode_next_frame_intra() # B
+                self.RGBimg = np.moveaxes(self.image_array,0,-1)
+            else:
+                full_height, full_width = self.image_height, self.image_width
+                if self.subsampling_num == 0:
+                    self.decode_next_frame_intra() # Co/Cb
+                    self.decode_next_frame_intra() # Cg/Cr
+                    img = np.moveaxes(self.image_array,0,-1)
+                    self.RGBimg = ycbcr2rgb(img) if isYCbCr else ycocg2rgb(img)
+
+                elif self.subsampling_num == 1:
+                    self.set_image_size(full_height,full_width/2)
+                    pass #TODO
+                elif self.subsampling_num == 2:
+                    self.set_image_size(full_height,full_width/4)
+                    pass #TODO
+                elif self.subsampling_num == 3:
+                    self.set_image_size(full_height/2,full_width/2)
+                    pass #TODO
+                else:
+                    raise Exception('the given subsmapling is not supported')
+        else:
+            while not self.bitstream.is_EOF():
+                self.decode_next_frame_inter()
         self.write_out()
 
