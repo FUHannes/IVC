@@ -18,8 +18,8 @@ DATA_ROOT_PATH = 'dat'
 IMAGES_ROOT_PATH = 'images'
 PGM_ORIGINAL_PATH = os.path.join(IMAGES_ROOT_PATH, 'org/pgm')
 PPM_ORIGINAL_PATH = os.path.join(IMAGES_ROOT_PATH, 'org/ppm')
-BITSTREAM_PATH = os.path.join(IMAGES_ROOT_PATH, 'bitstream')
-PGM_RECONSTRUCTION_PATH = os.path.join(IMAGES_ROOT_PATH, 'reconstruction')
+BITSTREAM_PATH = os.path.join(IMAGES_ROOT_PATH, 'encoded/ppm')
+PGM_RECONSTRUCTION_PATH = os.path.join(IMAGES_ROOT_PATH, 'transcoded')
 
 PGM_SUFFIX = '.pgm'
 PPM_SUFFIX = '.pgm'

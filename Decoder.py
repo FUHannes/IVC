@@ -10,6 +10,9 @@ from PredictionCalculator import PredictionMode
 from ColorSpaceConversion import *
 
 
+def unsample(ndarray,sample_amount=2,axis=0):
+    return np.split(np.repeat(ndarray,sample_amount,axis=axis),sample_amount,axis=axis)[0]
+
 def de_diagonalize(arr: np.ndarray) -> np.ndarray:
     x = 0
     y = 0
@@ -112,7 +115,6 @@ class Decoder:
                     file.write(f'P6\n{self.full_width} {self.full_height}\n255\n'.encode())
                 # padding is removed directly before output
                 self.RGBimg = self.RGBimg[:self.full_height,:self.full_width,:]
-                print(self.RGBimg.shape)
                 file.write(self.RGBimg.ravel().tobytes())
         else:
             out_file = open(self.output_path, "wb")
@@ -169,6 +171,27 @@ class Decoder:
         self.image = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],
                                dtype=np.uint8)
 
+    def unsample(self,index,sample_amount=2,axis=0):
+        self.image_array[index]=unsample(self.image_array[index],sample_amount=sample_amount,axis=axis)
+
+    def decode_sampled_color_intra(self,sample_amounts):
+        #make the decoder know the colorchannels only have half the width with this encoding
+        self.set_image_size(self.image_height//(sample_amounts[0] or 1),self.image_width//(sample_amounts[1] or 1))
+
+        #decode both color frames
+        self.decode_next_frame_intra() # Co/Cb
+        self.decode_next_frame_intra() # Cg/Cr
+
+        #unsample colorchannels along given axes
+        for index,sample_amount in enumerate(sample_amounts):
+            if sample_amount:
+                self.unsample(1,sample_amount,axis=index)
+                self.unsample(2,sample_amount,axis=index)
+
+        # convert to RGB img
+        img = np.moveaxis(np.asarray(self.image_array,dtype=np.uint8),0,-1)
+        self.RGBimg = ycbcr2rgb(img) if self.isYCbCr else ycocg2rgb(img)
+
     def decode_all_frames(self):
         self.decode_next_frame_intra()
         if self.isColored:
@@ -177,27 +200,31 @@ class Decoder:
                 self.decode_next_frame_intra() # B
                 self.RGBimg = np.moveaxis(self.image_array,0,-1)
             else:
-                full_height, full_width = self.image_height, self.image_width
+
+                # TODO if only there was a generalized pattern to get from subsample string to the actual subsampling along the axis...
+                # you could then encode the string more direct instead of flags and generalize the following switch
+
+                #4:4:4
                 if self.subsampling_num == 0:
-                    self.decode_next_frame_intra() # Co/Cb
-                    self.decode_next_frame_intra() # Cg/Cr
+                    self.decode_sampled_color_intra([1,1]) # both stay unsampled
+
+                #4:2:2
                 elif self.subsampling_num == 1:
-                    self.set_image_size(full_height,full_width/2)
-                    self.decode_next_frame_intra() # Co/Cb
-                    self.decode_next_frame_intra() # Cg/Cr
-                    pass #TODO unsample
+                    self.decode_sampled_color_intra([1,2]) # width was halved
+
+                #4:1:1
                 elif self.subsampling_num == 2:
-                    self.set_image_size(full_height,full_width/4)
-                    pass #TODO
+                    self.decode_sampled_color_intra([1,4]) # width was quatered (?)
+
+                #4:2:0
                 elif self.subsampling_num == 3:
-                    self.set_image_size(full_height/2,full_width/2)
-                    pass #TODO
+                    self.decode_sampled_color_intra([2,2]) # width and height were halved
+
                 else:
                     raise Exception('the given subsmapling is not supported')
-                img = np.moveaxis(self.image_array,0,-1)
-                self.RGBimg = ycbcr2rgb(img) if self.isYCbCr else ycocg2rgb(img)
+
         else:
             while not self.bitstream.is_EOF():
                 self.decode_next_frame_inter()
         self.write_out()
-
+                    
