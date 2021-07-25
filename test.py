@@ -1,3 +1,5 @@
+# TODO : compare Ycbcr vs RGB 
+
 import math
 import subprocess
 import pandas as pd
@@ -9,22 +11,26 @@ from Encoder import Encoder as Encoder
 from Decoder import Decoder as Decoder
 
 # todo: adapt source of tool to your file structure
-PSNR_TOOL_PATH = 'tools/psnr-images/bin/GNU-9.3.0/psnrImg'
+PSNR_TOOL_PATH = 'bin/psnrImg'
 
 DATA_ROOT_PATH = 'dat'
 
 IMAGES_ROOT_PATH = 'images'
-PGM_ORIGINAL_PATH = os.path.join(IMAGES_ROOT_PATH, 'original')
-BITSTREAM_PATH = os.path.join(IMAGES_ROOT_PATH, 'bitstream')
-PGM_RECONSTRUCTION_PATH = os.path.join(IMAGES_ROOT_PATH, 'reconstruction')
+PGM_ORIGINAL_PATH = os.path.join(IMAGES_ROOT_PATH, 'org/pgm')
+PPM_ORIGINAL_PATH = os.path.join(IMAGES_ROOT_PATH, 'org/ppm')
+BITSTREAM_PATH = os.path.join(IMAGES_ROOT_PATH, 'encoded/ppm')
+PGM_RECONSTRUCTION_PATH = os.path.join(IMAGES_ROOT_PATH, 'transcoded')
 
 PGM_SUFFIX = '.pgm'
-BITSTREAM_SUFFIX = '.txt'
+PPM_SUFFIX = '.ppm'
+BITSTREAM_SUFFIX = '.ivc21'
 DATA_SUFFIX = '.dat'
 
 
-def generate_data(filename, version, block_size=16):
-    input_path = os.path.join(PGM_ORIGINAL_PATH, filename + PGM_SUFFIX)
+def generate_data(filename, version, block_size=16,subsample_string=None):
+
+    input_path = os.path.join(PPM_ORIGINAL_PATH, filename + PPM_SUFFIX) if subsample_string else os.path.join(PGM_ORIGINAL_PATH, filename + PGM_SUFFIX)
+    print(input_path, subsample_string)
 
     if not os.path.exists(BITSTREAM_PATH):
         os.mkdir(BITSTREAM_PATH)
@@ -37,7 +43,7 @@ def generate_data(filename, version, block_size=16):
     df = pd.DataFrame(columns=['bpp', 'db'])
 
     for index, quality in enumerate([8, 12, 16, 20, 24]):
-        enc = Encoder(input_path, bitstream_path, block_size, quality, False)
+        enc = Encoder(input_path, bitstream_path, block_size, quality, False, subsample_string)
         enc.encode_image()
         dec = Decoder(bitstream_path, output_path, pgm=True)
         dec.decode_all_frames()

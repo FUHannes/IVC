@@ -17,9 +17,11 @@ def parse_args():
                         required=False)
     parser.add_argument('-bs', '--block-sizes', dest='bs', action='store_true',
                         help='optional: if set, curves for blocksizes [4,8,16,32] are computed')
+    parser.add_argument('-c', '--chroma_subsample_string', dest='subsample_string',default=None,
+                        help='optional: if set, the given subsampling will be applied e.g. -c 4:2:0b (see encode.py options)')
     parser.add_argument('-print', dest='print', action='store_true',
                         help='optional: if set, no new data is computed but version curves are plotted')
-
+    
     args = parser.parse_args()
     return args
 
@@ -31,14 +33,14 @@ def main():
         for block_size in [4, 8, 16, 32]:
             version = args.version + "_bs-" + str(block_size)
             if not args.print:
-                generate_data(args.filename, version, block_size)
+                generate_data(args.filename, version, block_size, subsample_string=args.subsample_string)
             if not block_size == 32:
                 versions += [version]
         versions = ','.join(versions)
         plot_data(args.filename, version, versions)
     else:
         if not args.print:
-            generate_data(args.filename, args.version, 16)
+            generate_data(args.filename, args.version, 16, subsample_string=args.subsample_string)
         plot_data(args.filename, args.version, args.versions)
 
 
