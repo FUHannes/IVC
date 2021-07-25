@@ -106,8 +106,9 @@ class Decoder:
     # opening and writing a binary file
     def write_out(self):
         if self.isColored:
-            with open(input_path, 'wb') as file:
-                file.write(f'P6\n{self.image_width} {self.image_height}\n255\n'.encode())
+            with open(self.output_path, 'wb') as file:
+                if self.pgm:
+                    file.write(f'P6\n{self.image_width} {self.image_height}\n255\n'.encode())
                 file.write(self.RGBimg.ravel().tobytes())
         else:
             out_file = open(self.output_path, "wb")
@@ -168,7 +169,7 @@ class Decoder:
             if self.isRGB:
                 self.decode_next_frame_intra() # G
                 self.decode_next_frame_intra() # B
-                self.RGBimg = np.moveaxes(self.image_array,0,-1)
+                self.RGBimg = np.moveaxis(self.image_array,0,-1)
             else:
                 full_height, full_width = self.image_height, self.image_width
                 if self.subsampling_num == 0:

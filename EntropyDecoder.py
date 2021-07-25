@@ -113,7 +113,6 @@ class EntropyDecoder:
         if length > 0:
             value = value << length
             value += self.arith_dec.decodeBinsEP(length)
-
         value -= 1
 
         return value
