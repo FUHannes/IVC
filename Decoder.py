@@ -1,4 +1,5 @@
 import numpy as np
+from tqdm import tqdm
 
 from EntropyDecoder import EntropyDecoder
 from IBitstream import IBitstream
@@ -109,6 +110,8 @@ class Decoder:
             with open(self.output_path, 'wb') as file:
                 if self.pgm:
                     file.write(f'P6\n{self.image_width} {self.image_height}\n255\n'.encode())
+                # padding is removed directly before output
+                self.RGBimg = self.RGBimg[:self.image_height,:self.image_width,:]
                 file.write(self.RGBimg.ravel().tobytes())
         else:
             out_file = open(self.output_path, "wb")
@@ -128,7 +131,7 @@ class Decoder:
         self.ent_dec = EntropyDecoder(self.bitstream, self.block_size)
 
         # decode blocks
-        for xi in range(0, self.image_height + self.pad_height, self.block_size):
+        for xi in tqdm(range(0, self.image_height + self.pad_height, self.block_size)):
             for yi in range(0, self.image_width + self.pad_width, self.block_size):
                 self.decode_block_intra_pic(xi, yi)
 
@@ -149,7 +152,7 @@ class Decoder:
         self.ent_dec = EntropyDecoder(self.bitstream, self.block_size)
 
         # decode blocks
-        for xi in range(0, self.image_height + self.pad_height, self.block_size):
+        for xi in tqdm(range(0, self.image_height + self.pad_height, self.block_size)):
             for yi in range(0, self.image_width + self.pad_width, self.block_size):
                 self.decode_block_inter_pic(xi, yi)
 
@@ -175,8 +178,8 @@ class Decoder:
                 if self.subsampling_num == 0:
                     self.decode_next_frame_intra() # Co/Cb
                     self.decode_next_frame_intra() # Cg/Cr
-                    img = np.moveaxes(self.image_array,0,-1)
-                    self.RGBimg = ycbcr2rgb(img) if isYCbCr else ycocg2rgb(img)
+                    img = np.moveaxis(self.image_array,0,-1)
+                    self.RGBimg = ycbcr2rgb(img) if self.isYCbCr else ycocg2rgb(img)
 
                 elif self.subsampling_num == 1:
                     self.set_image_size(full_height,full_width/2)
