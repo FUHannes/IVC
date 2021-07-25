@@ -164,7 +164,7 @@ class Encoder:
                     self.outputBitstream.addBits(3,2)#what kind of subsampling was used (from 0 to 3)
                     use_mean_instead_of_single_sample = True
                     for index, channel in enumerate(channels):
-                        if index==0  and False:
+                        if index==0 :# and False:
                             self.image = channel  
                         else: 
                             self.set_image_size(full_height/2,full_width/2)

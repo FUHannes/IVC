@@ -37,9 +37,9 @@ class Decoder:
         self.output_path = output_path
         self.pgm = pgm
         self.bitstream = IBitstream(input_path)
-        width, height = self.bitstream.get_bits(16), self.bitstream.get_bits(16)
+        self.full_width, self.full_height = self.bitstream.get_bits(16), self.bitstream.get_bits(16) # todo swap reihenfolge for consistency
         self.block_size = self.bitstream.get_bits(16)
-        self.set_image_size(height,width)
+        self.set_image_size(self.full_height,self.full_width)
         self.qp = self.bitstream.get_bits(8)
         self.qs = 2 ** (self.qp / 4)
 
@@ -77,7 +77,7 @@ class Decoder:
         # idct
         recBlock = self.transformation.backward_transform(recBlock, prediction_mode)
         # adding prediction
-        recBlock += self.pred_calc.get_prediction(x, y, prediction_mode)
+        recBlock = recBlock + self.pred_calc.get_prediction(x, y, prediction_mode) # += not possible 
         # clipping (0,255) and store to image
         self.image[x:x + self.block_size, y:y + self.block_size] = np.clip(recBlock, 0, 255).astype('uint8')
 
@@ -109,9 +109,10 @@ class Decoder:
         if self.isColored:
             with open(self.output_path, 'wb') as file:
                 if self.pgm:
-                    file.write(f'P6\n{self.image_width} {self.image_height}\n255\n'.encode())
+                    file.write(f'P6\n{self.full_width} {self.full_height}\n255\n'.encode())
                 # padding is removed directly before output
-                self.RGBimg = self.RGBimg[:self.image_height,:self.image_width,:]
+                self.RGBimg = self.RGBimg[:self.full_height,:self.full_width,:]
+                print(self.RGBimg.shape)
                 file.write(self.RGBimg.ravel().tobytes())
         else:
             out_file = open(self.output_path, "wb")
@@ -141,8 +142,10 @@ class Decoder:
             raise Exception('Arithmetic codeword not correctly terminated at end of frame')
 
         self.image_array.append(self.image)
-        self.image = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],
-                               dtype=np.uint8)
+        if self.isColored:
+            self.image = np.zeros(self.image.shape)
+        else:
+            self.image = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],dtype=np.uint8)
 
     def decode_next_frame_inter(self):
         padded_last_frame = np.pad(self.image_array[-1], ((self.block_size, self.block_size), (self.block_size, self.block_size)), "edge")
@@ -178,12 +181,11 @@ class Decoder:
                 if self.subsampling_num == 0:
                     self.decode_next_frame_intra() # Co/Cb
                     self.decode_next_frame_intra() # Cg/Cr
-                    img = np.moveaxis(self.image_array,0,-1)
-                    self.RGBimg = ycbcr2rgb(img) if self.isYCbCr else ycocg2rgb(img)
-
                 elif self.subsampling_num == 1:
                     self.set_image_size(full_height,full_width/2)
-                    pass #TODO
+                    self.decode_next_frame_intra() # Co/Cb
+                    self.decode_next_frame_intra() # Cg/Cr
+                    pass #TODO unsample
                 elif self.subsampling_num == 2:
                     self.set_image_size(full_height,full_width/4)
                     pass #TODO
@@ -192,6 +194,8 @@ class Decoder:
                     pass #TODO
                 else:
                     raise Exception('the given subsmapling is not supported')
+                img = np.moveaxis(self.image_array,0,-1)
+                self.RGBimg = ycbcr2rgb(img) if self.isYCbCr else ycocg2rgb(img)
         else:
             while not self.bitstream.is_EOF():
                 self.decode_next_frame_inter()

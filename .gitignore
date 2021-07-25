@@ -6,11 +6,11 @@ __*__
 
 .DS_Store
 
-# exclude image files and psnr curve pickles
-/images/*/*.pgm
-/images/*/*.txt
-/images/*/*.jpeg
-*.png
-dat/*/
+# do not exclude image files and psnr curve pickles
+#/images/*/*.pgm
+#/images/*/*.txt
+#/images/*/*.jpeg
+#*.png
+#dat/*/
 /videos/*/*.y
 /videos/*/*.txt
