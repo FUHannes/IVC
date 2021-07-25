@@ -144,7 +144,7 @@ class Decoder:
             raise Exception('Arithmetic codeword not correctly terminated at end of frame')
 
         self.image_array.append(self.image)
-        if self.isColored:
+        if self.isColored and not self.isRGB:
             self.image = np.zeros(self.image.shape)
         else:
             self.image = np.zeros([self.image_height + self.pad_height, self.image_width + self.pad_width],dtype=np.uint8)
