@@ -11,7 +11,7 @@ from Encoder import Encoder as Encoder
 from Decoder import Decoder as Decoder
 
 # todo: adapt source of tool to your file structure
-PSNR_TOOL_PATH = 'bin/psnrImg'
+PSNR_TOOL_PATH = 'bin/fenster/psnrImg'
 
 DATA_ROOT_PATH = 'dat'
 
@@ -43,7 +43,7 @@ def generate_data(filename, version, block_size=16,subsample_string=None):
     df = pd.DataFrame(columns=['bpp', 'db'])
 
     for index, quality in enumerate([8, 12, 16, 20, 24]):
-        enc = Encoder(input_path, bitstream_path, block_size, quality, False, subsample_string)
+        enc = Encoder(input_path, bitstream_path, block_size, quality, False, color_subsample_string=subsample_string)
         enc.encode_image()
         dec = Decoder(bitstream_path, output_path, pgm=True)
         dec.decode_all_frames()
@@ -55,7 +55,7 @@ def generate_data(filename, version, block_size=16,subsample_string=None):
 
         stdout = process.stdout.decode("utf-8")
         bpp, db = stdout.split(' bpp ')
-        bpp, db = float(bpp), float(db.replace(' dB', ''))
+        bpp, db = float(bpp), float(db.replace(' dB', '')) #TODo that wont work with color images
         db = 0.0 if math.isinf(db) else db
         df.loc[index] = [bpp, db]
 
