@@ -9,7 +9,7 @@ __*__
 # do exclude image files and psnr curve pickles
 /images/*/*.pgm
 /images/*/*.ppm
-/images/*/*.i
+/images/*/*.ivc21
 /images/*/*.jpeg
 *.png
 dat/*/
