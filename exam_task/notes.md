@@ -1,3 +1,7 @@
+# results
+create image: `python main.py -f Berlin -print -v cRGB -vs c411b,c411,c420,c422,c444 -c "whate"`
+generate data: `python main.py -f Berlin -v c444 -c 4:4:4`
+
 ## my task
 - IC2
 - Coding of Color Images
