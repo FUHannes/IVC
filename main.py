@@ -37,11 +37,11 @@ def main():
             if not block_size == 32:
                 versions += [version]
         versions = ','.join(versions)
-        plot_data(args.filename, version, versions)
+        plot_data(args.filename, version, versions, isColored=(args.subsample_string is not None))
     else:
         if not args.print:
             generate_data(args.filename, args.version, 16, subsample_string=args.subsample_string)
-        plot_data(args.filename, args.version, args.versions)
+        plot_data(args.filename, args.version, args.versions, isColored=(args.subsample_string is not None))
 
 
 if __name__ == '__main__':

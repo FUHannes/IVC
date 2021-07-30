@@ -27,18 +27,19 @@ BITSTREAM_SUFFIX = '.ivc21'
 DATA_SUFFIX = '.dat'
 
 
-def generate_data(filename, version, block_size=16,subsample_string=None):
+def generate_data(filename, version, block_size=16,subsample_string=None, add_subsampling_to_name=True):
 
     input_path = os.path.join(PPM_ORIGINAL_PATH, filename + PPM_SUFFIX) if subsample_string else os.path.join(PGM_ORIGINAL_PATH, filename + PGM_SUFFIX)
+    color_addon='' if subsample_string is None or not add_subsampling_to_name else '.'+subsample_string.replace(':','')
     print(input_path, subsample_string)
 
     if not os.path.exists(BITSTREAM_PATH):
         os.mkdir(BITSTREAM_PATH)
-    bitstream_path = os.path.join(BITSTREAM_PATH, filename + BITSTREAM_SUFFIX)
+    bitstream_path = os.path.join(BITSTREAM_PATH, filename +color_addon+ BITSTREAM_SUFFIX)
 
     if not os.path.exists(PGM_RECONSTRUCTION_PATH):
         os.mkdir(PGM_RECONSTRUCTION_PATH)
-    output_path = os.path.join(PGM_RECONSTRUCTION_PATH, filename + PGM_SUFFIX)
+    output_path = os.path.join(PGM_RECONSTRUCTION_PATH, filename +color_addon+ (PPM_SUFFIX if subsample_string else PGM_SUFFIX))
 
     df = pd.DataFrame(columns=['bpp', 'db'])
 
@@ -67,10 +68,10 @@ def generate_data(filename, version, block_size=16,subsample_string=None):
     df.to_pickle(os.path.join(version_path, filename + DATA_SUFFIX))
 
 
-def parse_jpeg_data():
-    jpeg_pgm_path = os.path.join(DATA_ROOT_PATH, 'JPEG_PGM' + DATA_SUFFIX)
+def parse_jpeg_data(isColored=False):
+    jpeg_pgm_path = os.path.join(DATA_ROOT_PATH, 'JPEG_PGM' + DATA_SUFFIX) if not isColored else os.path.join(DATA_ROOT_PATH, 'JPEG_PPM' + DATA_SUFFIX)
 
-    version_path = os.path.join(DATA_ROOT_PATH, 'jpeg')
+    version_path = os.path.join(DATA_ROOT_PATH, 'jpeg_rgb' if isColored else 'jpeg')
     if not os.path.exists(version_path):
         os.mkdir(version_path)
 
@@ -98,7 +99,7 @@ def parse_jpeg_data():
         df.to_pickle(os.path.join(version_path, filename + DATA_SUFFIX))
 
 
-def plot_data(filename, version, versions):
+def plot_data(filename, version, versions, isColored = False):
     versions = versions.split(',') + [version] if versions else [version]
 
     fig = plt.figure(figsize=(20, 12))
@@ -107,9 +108,9 @@ def plot_data(filename, version, versions):
             DATA_ROOT_PATH, version, filename + DATA_SUFFIX)))
         plt.plot(ver['bpp'], ver['db'], label=version)
 
-    jpeg_path = os.path.join(DATA_ROOT_PATH, 'jpeg', filename + DATA_SUFFIX)
+    jpeg_path = os.path.join(DATA_ROOT_PATH, 'jpeg' if not isColored else 'jpeg_rgb', filename + DATA_SUFFIX)
     if not os.path.exists(jpeg_path):
-        parse_jpeg_data()
+        parse_jpeg_data(isColored=isColored)
     jpeg = pd.DataFrame(pd.read_pickle(jpeg_path))
     plt.plot(jpeg['bpp'], jpeg['db'], label='jpeg', color='red')
 
