@@ -1,4 +1,7 @@
 # results
+
+to remove binary files from repo run: `git rm -r --cached && git add . && git commit -m "removed ignored files" && git push`
+
 create image: `python main.py -f Berlin -print -v cRGB -vs c411b,c411,c420,c422,c444 -c "whate"`
 generate data: `python main.py -f Berlin -v c444 -c 4:4:4`
 
