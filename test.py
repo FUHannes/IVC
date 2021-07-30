@@ -55,7 +55,8 @@ def generate_data(filename, version, block_size=16,subsample_string=None):
 
         stdout = process.stdout.decode("utf-8")
         bpp, db = stdout.split(' bpp ')
-        bpp, db = float(bpp), float(db.replace(' dB', '')) #TODo that wont work with color images
+        print(db)
+        bpp, db = float(bpp), float(db[:7])
         db = 0.0 if math.isinf(db) else db
         df.loc[index] = [bpp, db]
 
